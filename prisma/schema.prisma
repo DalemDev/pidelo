@@ -1,0 +1,292 @@
+// Esquema de datos de Pídelo (nombre provisional).
+// En desarrollo usa SQLite; para producción cambia el provider a "postgresql"
+// y el adapter en src/lib/db.ts (ver README).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  city         String   @default("Todo Ecuador")
+  bio          String   @default("")
+  // Slugs de categorías separados por coma (SQLite no soporta listas).
+  skills       String   @default("")
+  // Anti-fuga: intentos de compartir contacto o pagar por fuera antes del pago protegido.
+  strikes        Int       @default(0)
+  suspendedUntil DateTime?
+  // Monetización: billetera de créditos y plan de suscripción (FREE | PRO | ELITE).
+  credits          Int       @default(0)
+  plan             String    @default("FREE")
+  planRenewsAt     DateTime?
+  planAutoRenew    Boolean   @default(true)
+  creditsGrantedAt DateTime?
+  // Plantilla de oferta (beneficio Pro/Élite).
+  offerTemplate    String    @default("")
+  // USER | ADMIN
+  role             String    @default("USER")
+  // Cuenta bancaria para retiros (debe estar a nombre del mismo titular).
+  bankName          String?
+  bankAccountType   String?
+  bankAccountNumber String?
+  bankHolderName    String?
+  bankHolderId      String?
+  createdAt    DateTime @default(now())
+
+  payments         Payment[]
+  payouts          Payout[]
+  disputesOpened   Dispute[]
+
+  violations         Violation[]
+  creditTransactions CreditTransaction[]
+
+  requests         Request[]      @relation("RequestAuthor")
+  offers           Offer[]
+  messages         Message[]
+  reviewsWritten   Review[]       @relation("ReviewAuthor")
+  reviewsReceived  Review[]       @relation("ReviewTarget")
+  notifications    Notification[]
+}
+
+model Request {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  category    String
+  // RESOLVER | ACOMPANAMIENTO | COMPRA | OTRO
+  kind        String    @default("RESOLVER")
+  budgetMin   Float?
+  budgetMax   Float?
+  deadline    DateTime?
+  urgent      Boolean   @default(false)
+  // REMOTO | PRESENCIAL | CUALQUIERA
+  modality    String    @default("CUALQUIERA")
+  city        String    @default("Todo Ecuador")
+  // OPEN | AWAITING_PAYMENT | IN_PROGRESS | DELIVERED | COMPLETED | CANCELLED
+  status      String    @default("OPEN")
+  // Pago protegido: NONE | PENDING | HELD | DISPUTED | RELEASED | REFUNDED
+  escrow      String    @default("NONE")
+  // Para la liberación automática a las 72 h.
+  deliveredAt DateTime?
+  notifiedCount Int     @default(0)
+  views       Int       @default(0)
+  // Boosts pagados con créditos por quien pide.
+  featuredUntil DateTime?
+  bumpedAt      DateTime  @default(now())
+  // Ventana de acceso anticipado para planes Pro/Élite (null = abierta a todos).
+  premiumUntil  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  authorId        String
+  author          User    @relation("RequestAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  acceptedOfferId String? @unique
+  acceptedOffer   Offer?  @relation("AcceptedOffer", fields: [acceptedOfferId], references: [id])
+
+  offers   Offer[]
+  reviews  Review[]
+  payments Payment[]
+  disputes Dispute[]
+
+  @@index([status, createdAt])
+  @@index([category])
+}
+
+model Offer {
+  id           String   @id @default(cuid())
+  price        Float
+  deliveryDays Int
+  message      String
+  // PENDING | ACCEPTED | REJECTED | WITHDRAWN
+  status       String   @default("PENDING")
+  // Créditos pagados por enviar la oferta (se devuelven si el cliente cancela la solicitud).
+  creditsSpent Int      @default(0)
+  // Comisión aplicada; se fija al aceptar según el plan del proveedor.
+  feeRate      Float    @default(0.1)
+  createdAt    DateTime @default(now())
+
+  requestId  String
+  request    Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   User     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  acceptedFor Request?  @relation("AcceptedOffer")
+  messages    Message[]
+
+  @@unique([requestId, providerId])
+}
+
+// Chat privado entre quien pide y quien ofertó (un hilo por oferta).
+model Message {
+  id        String   @id @default(cuid())
+  body      String
+  // true si el filtro ocultó datos de contacto en este mensaje.
+  masked    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  offerId  String
+  offer    Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  senderId String
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([offerId, createdAt])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int
+  comment   String   @default("")
+  createdAt DateTime @default(now())
+
+  requestId String
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User    @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  targetId  String
+  target    User    @relation("ReviewTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, authorId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  body      String   @default("")
+  link      String   @default("/")
+  read      Boolean  @default(false)
+  // Permite avisar primero a Pro/Élite y más tarde al plan gratis.
+  visibleAt DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}
+
+// Registro de intentos de sacar la conversación o el pago de la plataforma (para moderación).
+model Violation {
+  id        String   @id @default(cuid())
+  // CHAT | OFFER | REQUEST
+  context   String
+  // MASKED (se ocultó el dato) | BLOCKED (no se envió)
+  action    String
+  // REGEX | PHRASE | AI
+  detector  String
+  reasons   String   @default("")
+  excerpt   String
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// Movimientos de la billetera de créditos (positivo = entra, negativo = sale).
+model CreditTransaction {
+  id          String   @id @default(cuid())
+  amount      Int
+  // PURCHASE | MONTHLY | PLAN | OFFER | FEATURE | URGENT | BUMP | REFUND
+  reason      String
+  description String
+  createdAt   DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// Cobro al cliente. Fase 1: transferencia o DeUna con comprobante, confirmado por un admin.
+model Payment {
+  id          String   @id @default(cuid())
+  // Código que el cliente pone en la descripción de la transferencia (ej. PID-7K2Q9).
+  code        String   @unique
+  amountCents Int
+  // TRANSFER | DEUNA
+  method      String   @default("TRANSFER")
+  // PENDING (esperando pago) | SUBMITTED (comprobante enviado) | CONFIRMED | REJECTED | CANCELLED
+  status      String   @default("PENDING")
+  reference   String   @default("")
+  receiptPath String?
+  adminNote   String   @default("")
+  createdAt   DateTime @default(now())
+  submittedAt DateTime?
+  confirmedAt DateTime?
+
+  requestId String
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  offerId   String
+  payerId   String
+  payer     User    @relation(fields: [payerId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+// Libro contable de doble entrada: cada transacción (txId) suma cero.
+// El saldo de una cuenta es la suma de sus asientos. Cuentas:
+//   WORLD                      dinero que entró (negativo) o salió (positivo) de la plataforma
+//   ESCROW:<requestId>         dinero retenido de una solicitud
+//   AVAILABLE:<userId>         saldo disponible de un usuario
+//   PAYOUT_PENDING:<userId>    retiros solicitados, aún no transferidos
+//   REVENUE                    ingresos de Pídelo (comisiones, créditos, planes pagados con saldo)
+model LedgerEntry {
+  id          String   @id @default(cuid())
+  txId        String
+  account     String
+  amountCents Int
+  memo        String
+  refType     String   @default("")
+  refId       String   @default("")
+  createdAt   DateTime @default(now())
+
+  @@index([account])
+  @@index([txId])
+}
+
+model Payout {
+  id          String   @id @default(cuid())
+  amountCents Int
+  // REQUESTED | PAID | REJECTED
+  status      String   @default("REQUESTED")
+  // Copia de los datos bancarios al momento de solicitar (por si luego cambian).
+  bankSnapshot String
+  reference   String   @default("")
+  adminNote   String   @default("")
+  createdAt   DateTime @default(now())
+  processedAt DateTime?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+model Dispute {
+  id          String    @id @default(cuid())
+  reason      String
+  // OPEN | RESOLVED
+  status      String    @default("OPEN")
+  // REFUND | RELEASE | SPLIT
+  resolution  String?
+  refundCents Int       @default(0)
+  adminNote   String    @default("")
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  requestId  String
+  request    Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  openedById String
+  openedBy   User    @relation(fields: [openedById], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}

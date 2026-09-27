@@ -1,26 +1,55 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-sans: var(--font-jakarta);
+  --font-display: var(--font-bricolage);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-brand-50: #f1f5ff;
+  --color-brand-100: #e0e8ff;
+  --color-brand-200: #c3d1ff;
+  --color-brand-500: #4f5dfb;
+  --color-brand-600: #3b3fe8;
+  --color-brand-700: #2f30c2;
+  --color-brand-900: #1d1f6b;
+
+  --color-sun-100: #fff4d6;
+  --color-sun-400: #ffc53d;
+  --color-sun-500: #f5a300;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #f7f7fb;
+  color: #18181b;
+}
+
+@utility card {
+  @apply rounded-2xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)];
+}
+
+@utility input {
+  @apply w-full rounded-xl border border-zinc-300 bg-white px-3.5 py-2.5 text-[15px] outline-none transition placeholder:text-zinc-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-100;
+}
+
+@utility label {
+  @apply mb-1.5 block text-sm font-semibold text-zinc-700;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+@utility btn-primary {
+  @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700;
+}
+
+@utility btn-secondary {
+  @apply btn border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50;
+}
+
+@utility btn-ghost {
+  @apply btn text-zinc-600 hover:bg-zinc-100;
+}
+
+@utility chip {
+  @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold;
 }

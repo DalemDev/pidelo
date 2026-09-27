@@ -39,3 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+!.env.example
+*.db
+*.db-journal
+
+# comprobantes subidos (Fase 1: disco local)
+/storage
+
+# configuración local del asistente (rutas de esta máquina)
+/.claude/
