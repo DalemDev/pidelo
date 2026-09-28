@@ -7,6 +7,9 @@ import { getReputations } from "@/lib/matching";
 import {
   BOOST_COSTS,
   BUMP_COOLDOWN_HOURS,
+  EXPIRY_WARNING_DAYS,
+  REQUEST_EXPIRY_DAYS,
+  expiresAt,
   EARLY_ACCESS_MINUTES,
   FEATURE_DAYS,
   STRIKES_LOSE_PRIORITY,
@@ -22,6 +25,7 @@ import { cancelRequest, markDelivered, withdrawOffer } from "@/app/actions/reque
 import { confirmCompletion, selectOffer } from "@/app/actions/payments";
 import { AUTO_RELEASE_HOURS } from "@/lib/money";
 import { releaseDueEscrows } from "@/lib/escrow";
+import { expireStaleRequests } from "@/lib/lifecycle";
 import { Avatar, PlanBadge, ReputationLine, StatusBadge } from "@/components/ui";
 import { SubmitButton } from "@/components/form-bits";
 import { BoostButton, DisputeForm, OfferForm, ReviewForm } from "./forms";
@@ -53,7 +57,7 @@ export async function generateMetadata({ params }: PageProps<"/solicitudes/[id]"
 }
 
 export default async function RequestPage({ params, searchParams }: PageProps<"/solicitudes/[id]">) {
-  const [{ id }, sp, user] = await Promise.all([params, searchParams, getCurrentUser(), releaseDueEscrows()]);
+  const [{ id }, sp, user] = await Promise.all([params, searchParams, getCurrentUser(), releaseDueEscrows(), expireStaleRequests()]);
   const request = await load(id);
   if (!request) notFound();
 
@@ -94,6 +98,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
   const earlyMinutesLeft = request.premiumUntil ? Math.max(1, Math.ceil((request.premiumUntil.getTime() - nowMs) / 60_000)) : 0;
   const bumpHoursLeft = Math.ceil(BUMP_COOLDOWN_HOURS - (nowMs - request.bumpedAt.getTime()) / 3600_000);
   const featured = isFeatured(request);
+  const expiringSoon = expiresAt(request).getTime() - nowMs < EXPIRY_WARNING_DAYS * 86400_000;
   const payment = request.payments[0];
   const dispute = request.disputes[0];
   const autoReleaseAt = request.deliveredAt ? new Date(request.deliveredAt.getTime() + AUTO_RELEASE_HOURS * 3600_000) : null;
@@ -420,6 +425,20 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
                   Destacada hasta el {request.featuredUntil!.toLocaleDateString("es-EC", { day: "numeric", month: "short" })}.
                 </p>
               )}
+              <p className={`mt-3 rounded-lg px-3 py-2 text-xs ${expiringSoon ? "bg-amber-50 text-amber-900" : "bg-zinc-50 text-zinc-600"}`}>
+                ⌛ Vence el {expiresAt(request).toLocaleDateString("es-EC", { weekday: "short", day: "numeric", month: "short" })} si no eliges una oferta.
+                Volver a subirla reinicia el plazo de {REQUEST_EXPIRY_DAYS} días.
+              </p>
+            </div>
+          )}
+
+          {isAuthor && request.status === "EXPIRED" && (
+            <div className="card p-5">
+              <div className="font-semibold">⌛ Esta solicitud venció</div>
+              <p className="mt-1 text-sm text-zinc-600">
+                Pasaron {REQUEST_EXPIRY_DAYS} días sin elegir una oferta. A quienes ofertaron les devolvimos sus créditos.
+              </p>
+              <Link href="/publicar" className="btn-primary mt-3 w-full">Publicar de nuevo</Link>
             </div>
           )}
 

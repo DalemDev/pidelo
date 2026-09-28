@@ -5,13 +5,14 @@ import { logout } from "@/app/actions/auth";
 import { Avatar, PlanBadge } from "./ui";
 import { refreshAccount } from "@/lib/credits";
 import { releaseDueEscrows } from "@/lib/escrow";
+import { expireStaleRequests } from "@/lib/lifecycle";
 
 export async function Navbar() {
   const session = await getCurrentUser();
   // Renueva planes y entrega créditos mensuales si corresponde (sin cron).
   if (session) await refreshAccount(session.id);
   // Libera pagos de trabajos entregados hace más de 72 h (sin cron; ver README para usar Vercel Cron).
-  await releaseDueEscrows();
+  await Promise.all([releaseDueEscrows(), expireStaleRequests()]);
   const [user, unread] = session
     ? await Promise.all([
         db.user.findUnique({ where: { id: session.id }, select: { id: true, name: true, email: true, credits: true, plan: true, role: true } }),

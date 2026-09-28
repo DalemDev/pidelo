@@ -68,6 +68,7 @@ export const STATUS_LABELS: Record<string, { label: string; tone: string }> = {
   DELIVERED: { label: "Entregado", tone: "bg-amber-100 text-amber-800" },
   COMPLETED: { label: "Completado", tone: "bg-zinc-200 text-zinc-700" },
   CANCELLED: { label: "Cancelado", tone: "bg-rose-100 text-rose-800" },
+  EXPIRED: { label: "Vencida", tone: "bg-zinc-200 text-zinc-600" },
 };
 
 export function categoryOf(slug: string) {
@@ -175,4 +176,13 @@ export function offerCost(budgetMin: number | null, budgetMax: number | null) {
 
 export function isFeatured(r: { featuredUntil: Date | null }) {
   return !!r.featuredUntil && r.featuredUntil > new Date();
+}
+
+// Una solicitud abierta sin actividad (sin elegir oferta ni volver a subirla) vence a los 14 días
+// y devuelve los créditos a quienes ofertaron. El recordatorio sale 2 días antes.
+export const REQUEST_EXPIRY_DAYS = 14;
+export const EXPIRY_WARNING_DAYS = 2;
+
+export function expiresAt(r: { bumpedAt: Date }) {
+  return new Date(r.bumpedAt.getTime() + REQUEST_EXPIRY_DAYS * 86400_000);
 }

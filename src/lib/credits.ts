@@ -1,8 +1,9 @@
 import "server-only";
 import { db } from "./db";
 import { PLANS, planOf, type PlanId } from "./constants";
+import type { PlanQuote } from "./plans";
 
-type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
+export type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
 
 export class InsufficientCredits extends Error {
   constructor(
@@ -40,25 +41,28 @@ const MONTH_MS = 30 * 86400_000;
 export async function refreshAccount(userId: string) {
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { plan: true, planRenewsAt: true, planAutoRenew: true, creditsGrantedAt: true, role: true },
+    select: { plan: true, planRenewsAt: true, planAutoRenew: true, nextPlan: true, creditsGrantedAt: true, role: true },
   });
   if (!user || user.role === "ADMIN") return;
   const now = new Date();
 
   if (user.plan !== "FREE" && user.planRenewsAt && user.planRenewsAt <= now) {
-    if (user.planAutoRenew) {
-      // MVP: renovación simulada. En producción aquí se confirma el cobro recurrente de la pasarela.
-      const plan = planOf(user.plan);
-      await db.$transaction(async (tx) => {
-        await tx.user.update({
-          where: { id: userId },
-          data: { planRenewsAt: new Date(user.planRenewsAt!.getTime() + MONTH_MS), creditsGrantedAt: now },
+    const renewsAt = user.planRenewsAt;
+    await db.$transaction(async (tx) => {
+      // Condicionado a la fecha leída: si dos requests llegan a la vez, solo una renueva.
+      if (user.planAutoRenew) {
+        // MVP: renovación simulada. En producción aquí se confirma el cobro recurrente de la pasarela.
+        // Si había una bajada programada, se aplica ahora.
+        const plan = planOf(user.nextPlan ?? user.plan);
+        const { count } = await tx.user.updateMany({
+          where: { id: userId, planRenewsAt: renewsAt },
+          data: { plan: plan.id, nextPlan: null, planRenewsAt: new Date(renewsAt.getTime() + MONTH_MS), creditsGrantedAt: now },
         });
-        await grantCredits(tx, userId, plan.monthlyCredits, "PLAN", `Renovación plan ${plan.label}`);
-      });
-    } else {
-      await db.user.update({ where: { id: userId }, data: { plan: "FREE", planRenewsAt: null } });
-    }
+        if (count) await grantCredits(tx, userId, plan.monthlyCredits, "PLAN", `Renovación plan ${plan.label}`);
+      } else {
+        await tx.user.updateMany({ where: { id: userId, planRenewsAt: renewsAt }, data: { plan: "FREE", nextPlan: null, planRenewsAt: null } });
+      }
+    });
     return;
   }
 
@@ -77,14 +81,30 @@ export async function refreshAccount(userId: string) {
   }
 }
 
-export async function subscribe(userId: string, planId: PlanId) {
-  const plan = PLANS[planId];
-  const now = new Date();
-  await db.$transaction(async (tx) => {
-    await tx.user.update({
-      where: { id: userId },
-      data: { plan: planId, planRenewsAt: new Date(now.getTime() + MONTH_MS), planAutoRenew: true, creditsGrantedAt: now },
-    });
-    await grantCredits(tx, userId, plan.monthlyCredits, "PLAN", `Suscripción plan ${plan.label}`);
-  });
+/**
+ * Aplica un cambio de plan ya cotizado (ver quotePlanChange). Debe correr dentro de la misma
+ * transacción que el cobro, para que nunca haya cobro sin plan ni plan sin cobro.
+ */
+export async function applyPlanChange(tx: Tx, userId: string, target: PlanId, quote: PlanQuote) {
+  const plan = PLANS[target];
+  switch (quote.kind) {
+    case "NEW":
+      await tx.user.update({
+        where: { id: userId },
+        data: { plan: target, nextPlan: null, planRenewsAt: quote.renewsAt, planAutoRenew: true, creditsGrantedAt: new Date() },
+      });
+      await grantCredits(tx, userId, quote.credits, "PLAN", `Suscripción plan ${plan.label}`);
+      return;
+    case "UPGRADE":
+      await tx.user.update({ where: { id: userId }, data: { plan: target, nextPlan: null, planAutoRenew: true } });
+      if (quote.credits > 0) {
+        await grantCredits(tx, userId, quote.credits, "PLAN", `Mejora a ${plan.label} (prorrateo de ${quote.daysLeft} días)`);
+      }
+      return;
+    case "DOWNGRADE":
+      await tx.user.update({ where: { id: userId }, data: { nextPlan: target, planAutoRenew: true } });
+      return;
+    case "SAME":
+      return;
+  }
 }

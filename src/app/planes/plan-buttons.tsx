@@ -1,16 +1,18 @@
 "use client";
 
 import { useActionState, useTransition } from "react";
-import { setAutoRenew, subscribePlan, type PayMethod } from "@/app/actions/billing";
+import { cancelPlanChange, setAutoRenew, subscribePlan, type PayMethod } from "@/app/actions/billing";
 
 export function SubscribeButton({
   planId,
   label,
+  note,
   primary,
   canUseBalance,
 }: {
   planId: string;
   label: string;
+  note?: string;
   primary?: boolean;
   canUseBalance?: boolean;
 }) {
@@ -20,6 +22,7 @@ export function SubscribeButton({
   );
   return (
     <form action={action} className="space-y-2">
+      {note && <p className="text-xs text-zinc-500">{note}</p>}
       <button name="method" value="CARD" disabled={pending} className={`${primary ? "btn-primary" : "btn-secondary"} w-full`}>
         {pending ? "Procesando…" : label}
       </button>
@@ -39,6 +42,15 @@ export function AutoRenewToggle({ autoRenew }: { autoRenew: boolean }) {
   return (
     <button disabled={pending} onClick={() => start(() => setAutoRenew(!autoRenew))} className="btn-secondary">
       {pending ? "…" : autoRenew ? "Cancelar renovación" : "Reactivar renovación"}
+    </button>
+  );
+}
+
+export function CancelChangeButton() {
+  const [pending, start] = useTransition();
+  return (
+    <button disabled={pending} onClick={() => start(() => cancelPlanChange())} className="btn-secondary">
+      {pending ? "…" : "Mantener mi plan"}
     </button>
   );
 }

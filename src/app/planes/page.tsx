@@ -1,17 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { PLANS, type PlanId } from "@/lib/constants";
-import { AutoRenewToggle, SubscribeButton } from "./plan-buttons";
+import { PLANS, planOf, type PlanId } from "@/lib/constants";
+import { quotePlanChange } from "@/lib/plans";
+import { AutoRenewToggle, CancelChangeButton, SubscribeButton } from "./plan-buttons";
 import { balance } from "@/lib/ledger";
-import { ACCOUNTS } from "@/lib/money";
+import { ACCOUNTS, fmtCents } from "@/lib/money";
 
 export const metadata: Metadata = { title: "Planes" };
 
-export default async function PlansPage() {
-  const user = await getCurrentUser();
+const fmtDate = (d: Date) => d.toLocaleDateString("es-EC", { day: "numeric", month: "long" });
+
+export default async function PlansPage({ searchParams }: PageProps<"/planes">) {
+  const [user, sp] = await Promise.all([getCurrentUser(), searchParams]);
+  const changed = typeof sp.cambio === "string" && typeof sp.plan === "string" && sp.plan in PLANS ? { kind: sp.cambio, plan: PLANS[sp.plan as PlanId] } : null;
+  const paid = Number(sp.monto ?? 0);
+  const gained = Number(sp.creditos ?? 0);
   const current = (user?.plan ?? "FREE") as PlanId;
   const walletCents = user ? await balance(ACCOUNTS.available(user.id)) : 0;
+  const nextPlan = user?.nextPlan ? planOf(user.nextPlan) : null;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
@@ -23,13 +30,41 @@ export default async function PlansPage() {
         </p>
       </div>
 
+      {changed && (
+        <div role="status" className="mx-auto mt-8 max-w-2xl rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          {changed.kind === "downgrade" ? (
+            <>
+              📅 Listo: pasarás a <b>{changed.plan.label}</b> en tu próxima renovación. Hasta entonces conservas tu plan actual.
+            </>
+          ) : (
+            <>
+              ✨ ¡{changed.kind === "upgrade" ? "Ahora eres" : "Bienvenido al plan"} <b>{changed.plan.label}</b>!{" "}
+              {paid > 0 && <>Pagaste {fmtCents(paid)}{changed.kind === "upgrade" && " por los días que quedan del ciclo"} y </>}
+              sumaste {gained} créditos.
+            </>
+          )}
+        </div>
+      )}
+
       {user && current !== "FREE" && user.planRenewsAt && (
         <div className="card mx-auto mt-8 flex max-w-2xl flex-wrap items-center justify-between gap-3 p-4 text-sm">
           <span>
-            Tu plan <b>{PLANS[current].label}</b> {user.planAutoRenew ? "se renueva" : "termina"} el{" "}
-            <b>{user.planRenewsAt.toLocaleDateString("es-EC", { day: "numeric", month: "long" })}</b>.
+            Tu plan <b>{PLANS[current].label}</b>{" "}
+            {nextPlan && user.planAutoRenew ? (
+              <>
+                pasará a <b>{nextPlan.label}</b> el
+              </>
+            ) : user.planAutoRenew ? (
+              "se renueva el"
+            ) : (
+              "termina el"
+            )}{" "}
+            <b>{fmtDate(user.planRenewsAt)}</b>.
           </span>
-          <AutoRenewToggle autoRenew={user.planAutoRenew} />
+          <div className="flex gap-2">
+            {nextPlan && user.planAutoRenew && <CancelChangeButton />}
+            <AutoRenewToggle autoRenew={user.planAutoRenew} />
+          </div>
         </div>
       )}
 
@@ -73,7 +108,41 @@ export default async function PlansPage() {
                 ) : plan.id === "FREE" ? (
                   <p className="text-center text-xs text-zinc-500">Desactiva la renovación para volver al plan gratis al final del periodo.</p>
                 ) : (
-                  <SubscribeButton planId={plan.id} label={`Suscribirme a ${plan.label}`} primary={highlight} canUseBalance={walletCents >= plan.price * 100} />
+                  (() => {
+                    const q = quotePlanChange(user, plan.id);
+                    if (q.kind === "DOWNGRADE") {
+                      return user.nextPlan === plan.id ? (
+                        <p className="text-center text-xs text-zinc-500">Cambio programado para el {fmtDate(q.renewsAt)}.</p>
+                      ) : (
+                        <SubscribeButton
+                          planId={plan.id}
+                          label={`Cambiar a ${plan.label} al renovar`}
+                          note={`Conservas tu plan actual hasta el ${fmtDate(q.renewsAt)}. Sin cobros hoy.`}
+                          primary={false}
+                          canUseBalance={false}
+                        />
+                      );
+                    }
+                    if (q.kind === "UPGRADE") {
+                      return (
+                        <SubscribeButton
+                          planId={plan.id}
+                          label={`Mejorar a ${plan.label} · ${fmtCents(q.chargeCents)}`}
+                          note={`Pagas solo la diferencia por los ${q.daysLeft} días que quedan y recibes ${q.credits} créditos. Tu renovación sigue el ${fmtDate(q.renewsAt)}.`}
+                          primary={highlight}
+                          canUseBalance={walletCents >= q.chargeCents}
+                        />
+                      );
+                    }
+                    return (
+                      <SubscribeButton
+                        planId={plan.id}
+                        label={`Suscribirme a ${plan.label}`}
+                        primary={highlight}
+                        canUseBalance={q.kind === "NEW" && walletCents >= q.chargeCents}
+                      />
+                    );
+                  })()
                 )}
               </div>
             </div>

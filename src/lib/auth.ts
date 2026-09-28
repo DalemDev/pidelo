@@ -48,7 +48,7 @@ export const getCurrentUser = cache(async () => {
     if (typeof payload.sub !== "string") return null;
     return await db.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, name: true, email: true, city: true, skills: true, bio: true, strikes: true, suspendedUntil: true, credits: true, plan: true, planRenewsAt: true, planAutoRenew: true, offerTemplate: true, role: true },
+      select: { id: true, name: true, email: true, city: true, skills: true, bio: true, strikes: true, suspendedUntil: true, credits: true, plan: true, planRenewsAt: true, planAutoRenew: true, nextPlan: true, offerTemplate: true, role: true },
     });
   } catch {
     return null;

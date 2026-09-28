@@ -26,7 +26,8 @@ export default async function FeedPage({ searchParams }: PageProps<"/solicitudes
   const paraTi = param(sp.vista) === "parati" && skills.length > 0;
 
   const where: Prisma.RequestWhereInput = { status: "OPEN" };
-  if (q) where.OR = [{ title: { contains: q } }, { description: { contains: q } }];
+  // PostgreSQL distingue mayúsculas en LIKE: la búsqueda debe ser insensible ("excel" encuentra "Excel").
+  if (q) where.OR = [{ title: { contains: q, mode: "insensitive" } }, { description: { contains: q, mode: "insensitive" } }];
   if (categoria) where.category = categoria;
   else if (paraTi) where.category = { in: skills };
   if (tipo) where.kind = tipo;

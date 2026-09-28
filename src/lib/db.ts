@@ -1,14 +1,14 @@
 import "server-only";
 import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { env } from "./env";
 
 // Reutiliza el cliente entre recargas en desarrollo para no abrir conexiones de más.
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function createClient() {
-  const adapter = new PrismaLibSql({
-    url: process.env.DATABASE_URL ?? "file:./dev.db",
-  });
+  // En serverless (Vercel) usa la URL con pooling del proveedor (Neon/Supabase "pooled").
+  const adapter = new PrismaPg({ connectionString: env.DATABASE_URL });
   return new PrismaClient({ adapter });
 }
 

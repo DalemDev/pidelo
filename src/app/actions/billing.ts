@@ -1,12 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { ADMIN_BLOCKED, isAdmin, requireUser } from "@/lib/auth";
 import { BOOST_COSTS, BUMP_COOLDOWN_HOURS, CREDIT_PACKS, FEATURE_DAYS, PLANS, isFeatured, type PlanId } from "@/lib/constants";
-import { InsufficientCredits, grantCredits, spendCredits, subscribe } from "@/lib/credits";
+import { InsufficientCredits, applyPlanChange, grantCredits, spendCredits } from "@/lib/credits";
+import { quotePlanChange, type PlanQuote } from "@/lib/plans";
 import { balance, post, type Tx } from "@/lib/ledger";
-import { ACCOUNTS, toCents } from "@/lib/money";
+import { ACCOUNTS, fmtCents, toCents } from "@/lib/money";
+import { notify } from "@/lib/matching";
 import type { FormState } from "./auth";
 
 // MVP: compras y suscripciones simuladas. En producción, estas acciones se ejecutan desde el
@@ -61,25 +64,63 @@ export async function subscribePlan(planId: string, method: PayMethod = "CARD"):
   const user = await requireUser("/planes");
   if (isAdmin(user)) return { error: ADMIN_BLOCKED };
   if (planId !== "PRO" && planId !== "ELITE") return { error: "Plan no válido" };
-  const plan = PLANS[planId as PlanId];
+  const target = planId as PlanId;
+  const plan = PLANS[target];
+
+  let quote: PlanQuote;
   try {
-    if (method === "BALANCE") {
-      await db.$transaction((tx) => chargeBalance(tx, user.id, toCents(plan.price), `Plan ${plan.label} (1 mes)`));
-    }
+    // Todo en una transacción: el plan vigente se lee, se cotiza, se cobra y se aplica junto.
+    // Si el cobro falla, el plan no cambia; si el cambio falla, el cobro se revierte.
+    quote = await db.$transaction(async (tx) => {
+      const current = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { plan: true, planRenewsAt: true } });
+      const q = quotePlanChange(current, target);
+      if (q.kind === "SAME") return q;
+      if (method === "BALANCE" && (q.kind === "NEW" || q.kind === "UPGRADE") && q.chargeCents > 0) {
+        const memo = q.kind === "UPGRADE" ? `Mejora a ${plan.label} (prorrateo de ${q.daysLeft} días)` : `Plan ${plan.label} (1 mes)`;
+        await chargeBalance(tx, user.id, q.chargeCents, memo);
+      }
+      await applyPlanChange(tx, user.id, target, q);
+      return q;
+    });
   } catch (e) {
     if (e instanceof InsufficientBalance) return { error: e.message };
     throw e;
   }
-  await subscribe(user.id, planId as PlanId);
+
+  if (quote.kind === "SAME") return { error: "Ya tienes este plan" };
+
+  // La tarjeta del plan cambia tras aplicar el cambio (y con ella el botón), así que el mensaje de
+  // éxito se muestra a nivel de página vía la URL, y queda una notificación como comprobante.
+  const detail =
+    quote.kind === "NEW"
+      ? `Suscripción a ${plan.label}: ${fmtCents(quote.chargeCents)} · +${quote.credits} créditos. Se renueva el ${fmtDate(quote.renewsAt)}.`
+      : quote.kind === "UPGRADE"
+        ? `Mejora a ${plan.label}: ${fmtCents(quote.chargeCents)} por ${quote.daysLeft} días restantes · +${quote.credits} créditos. Tu renovación sigue el ${fmtDate(quote.renewsAt)}.`
+        : `Pasarás a ${plan.label} el ${fmtDate(quote.renewsAt)}. Hasta entonces conservas tu plan actual.`;
+  await notify(user.id, quote.kind === "DOWNGRADE" ? "📅 Cambio de plan programado" : `✨ Plan ${plan.label} activo`, detail, "/planes");
   revalidatePath("/", "layout");
-  return { ok: `¡Bienvenido al plan ${plan.label}! Te sumamos ${plan.monthlyCredits} créditos.` };
+  const params = new URLSearchParams({ cambio: quote.kind.toLowerCase(), plan: target });
+  if (quote.kind !== "DOWNGRADE") {
+    params.set("monto", String(quote.chargeCents));
+    params.set("creditos", String(quote.credits));
+  }
+  redirect(`/planes?${params}`);
 }
 
 export async function setAutoRenew(autoRenew: boolean) {
   const user = await requireUser("/planes");
-  await db.user.update({ where: { id: user.id }, data: { planAutoRenew: autoRenew } });
+  // Cancelar la renovación también anula una bajada programada: el plan simplemente termina.
+  await db.user.update({ where: { id: user.id }, data: { planAutoRenew: autoRenew, ...(autoRenew ? {} : { nextPlan: null }) } });
   revalidatePath("/planes");
 }
+
+export async function cancelPlanChange() {
+  const user = await requireUser("/planes");
+  await db.user.update({ where: { id: user.id }, data: { nextPlan: null } });
+  revalidatePath("/planes");
+}
+
+const fmtDate = (d: Date) => d.toLocaleDateString("es-EC", { day: "numeric", month: "long" });
 
 // ---------------------------------------------------------------------------
 // Boosts de solicitudes (quien pide)
@@ -93,7 +134,7 @@ export async function boostRequest(requestId: string, kind: BoostKind): Promise<
   if (request.status !== "OPEN") return { error: "Solo puedes impulsar solicitudes abiertas" };
 
   const now = new Date();
-  let data: { featuredUntil?: Date; urgent?: boolean; bumpedAt?: Date };
+  let data: { featuredUntil?: Date; urgent?: boolean; bumpedAt?: Date; expiryWarned?: boolean };
   let label: string;
   if (kind === "FEATURE") {
     const base = isFeatured(request) ? request.featuredUntil! : now;
@@ -101,14 +142,14 @@ export async function boostRequest(requestId: string, kind: BoostKind): Promise<
     label = `Destacar ${FEATURE_DAYS} días`;
   } else if (kind === "URGENT") {
     if (request.urgent) return { error: "Ya está marcada como urgente" };
-    data = { urgent: true, bumpedAt: now };
+    data = { urgent: true, bumpedAt: now, expiryWarned: false };
     label = "Marcar como urgente";
   } else {
     const hours = (now.getTime() - request.bumpedAt.getTime()) / 3600_000;
     if (hours < BUMP_COOLDOWN_HOURS) {
       return { error: `Podrás volver a subirla en ${Math.ceil(BUMP_COOLDOWN_HOURS - hours)} h` };
     }
-    data = { bumpedAt: now };
+    data = { bumpedAt: now, expiryWarned: false };
     label = "Volver a subir";
   }
 

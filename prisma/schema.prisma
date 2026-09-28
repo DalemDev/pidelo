@@ -1,6 +1,5 @@
 // Esquema de datos de Pídelo (nombre provisional).
-// En desarrollo usa SQLite; para producción cambia el provider a "postgresql"
-// y el adapter en src/lib/db.ts (ver README).
+// PostgreSQL en desarrollo (docker compose) y en producción (servicio gestionado).
 
 generator client {
   provider = "prisma-client"
@@ -8,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model User {
@@ -18,7 +17,7 @@ model User {
   passwordHash String
   city         String   @default("Todo Ecuador")
   bio          String   @default("")
-  // Slugs de categorías separados por coma (SQLite no soporta listas).
+  // Slugs de categorías separados por coma.
   skills       String   @default("")
   // Anti-fuga: intentos de compartir contacto o pagar por fuera antes del pago protegido.
   strikes        Int       @default(0)
@@ -28,6 +27,8 @@ model User {
   plan             String    @default("FREE")
   planRenewsAt     DateTime?
   planAutoRenew    Boolean   @default(true)
+  // Bajada de plan programada: se aplica en la próxima renovación.
+  nextPlan         String?
   creditsGrantedAt DateTime?
   // Plantilla de oferta (beneficio Pro/Élite).
   offerTemplate    String    @default("")
@@ -70,7 +71,7 @@ model Request {
   // REMOTO | PRESENCIAL | CUALQUIERA
   modality    String    @default("CUALQUIERA")
   city        String    @default("Todo Ecuador")
-  // OPEN | AWAITING_PAYMENT | IN_PROGRESS | DELIVERED | COMPLETED | CANCELLED
+  // OPEN | AWAITING_PAYMENT | IN_PROGRESS | DELIVERED | COMPLETED | CANCELLED | EXPIRED
   status      String    @default("OPEN")
   // Pago protegido: NONE | PENDING | HELD | DISPUTED | RELEASED | REFUNDED
   escrow      String    @default("NONE")
@@ -81,6 +82,8 @@ model Request {
   // Boosts pagados con créditos por quien pide.
   featuredUntil DateTime?
   bumpedAt      DateTime  @default(now())
+  // Recordatorio de vencimiento ya enviado (se reinicia al volver a subir la solicitud).
+  expiryWarned  Boolean   @default(false)
   // Ventana de acceso anticipado para planes Pro/Élite (null = abierta a todos).
   premiumUntil  DateTime?
   createdAt   DateTime  @default(now())

@@ -1,11 +1,11 @@
 // Datos de demostración. Ejecuta: npm run db:seed
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 
 const db = new PrismaClient({
-  adapter: new PrismaLibSql({ url: process.env.DATABASE_URL ?? "file:./dev.db" }),
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
 });
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000);
