@@ -10,6 +10,8 @@ const schema = z.object({
   SESSION_SECRET: optional,
   CRON_SECRET: optional,
   ANTHROPIC_API_KEY: optional,
+  // "1" permite compras con tarjeta simuladas en producción (solo para un demo; nunca con usuarios reales).
+  ALLOW_SIMULATED_PAYMENTS: optional,
 
   // Almacenamiento de comprobantes: disco local (solo desarrollo) o S3 compatible (S3, Cloudflare R2).
   STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
@@ -40,6 +42,14 @@ function parse(): Env {
 }
 
 export const env = parse();
+
+/**
+ * Sin pasarela integrada, "pagar con tarjeta" no cobra nada: solo se permite en desarrollo
+ * o si se habilita a propósito. En producción, créditos y planes se pagan con el saldo de la billetera.
+ */
+export function simulatedPaymentsEnabled(e: Env = env) {
+  return process.env.NODE_ENV !== "production" || e.ALLOW_SIMULATED_PAYMENTS === "1";
+}
 
 /**
  * Requisitos adicionales de producción. Se ejecuta al arrancar el servidor (instrumentation.ts),

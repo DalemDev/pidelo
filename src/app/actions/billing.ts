@@ -5,47 +5,37 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { ADMIN_BLOCKED, isAdmin, requireUser } from "@/lib/auth";
 import { BOOST_COSTS, BUMP_COOLDOWN_HOURS, CREDIT_PACKS, FEATURE_DAYS, PLANS, isFeatured, type PlanId } from "@/lib/constants";
-import { InsufficientCredits, applyPlanChange, grantCredits, spendCredits } from "@/lib/credits";
+import { InsufficientBalance, InsufficientCredits, applyPlanChange, chargeBalance, grantCredits, spendCredits } from "@/lib/credits";
 import { quotePlanChange, type PlanQuote } from "@/lib/plans";
-import { balance, post, type Tx } from "@/lib/ledger";
-import { ACCOUNTS, fmtCents, toCents } from "@/lib/money";
+import { simulatedPaymentsEnabled } from "@/lib/env";
+import { fmtCents, toCents } from "@/lib/money";
 import { notify } from "@/lib/matching";
 import type { FormState } from "./auth";
 
-// MVP: compras y suscripciones simuladas. En producción, estas acciones se ejecutan desde el
-// webhook de la pasarela (PayPhone/Kushki) cuando el pago se confirma, nunca directo desde el cliente.
+// "BALANCE" cobra del saldo de la billetera. "CARD" está simulado hasta integrar la pasarela
+// (PayPhone/Kushki): solo funciona en desarrollo; en producción, la compra con tarjeta debe ejecutarse
+// desde el webhook de la pasarela cuando el pago se confirma, nunca directo desde el cliente.
 
 export type PayMethod = "CARD" | "BALANCE";
 
-/**
- * Cobra con el saldo de la billetera (dinero ganado o reembolsado): el dinero no sale de la plataforma.
- * "CARD" sigue simulado hasta integrar la pasarela.
- */
-async function chargeBalance(tx: Tx, userId: string, cents: number, memo: string) {
-  if ((await balance(ACCOUNTS.available(userId), tx)) < cents) throw new InsufficientBalance();
-  await post(
-    tx,
-    [
-      { account: ACCOUNTS.available(userId), amountCents: -cents },
-      { account: ACCOUNTS.REVENUE, amountCents: cents },
-    ],
-    memo,
-    "PURCHASE",
-    userId,
-  );
+const CARD_UNAVAILABLE = "El pago con tarjeta aún no está disponible. Puedes pagar con el saldo de tu billetera.";
+
+/** Valida el método recibido del formulario; devuelve un error si no se puede usar. */
+function checkMethod(method: string): string | null {
+  if (method !== "CARD" && method !== "BALANCE") return "Método de pago no válido";
+  if (method === "CARD" && !simulatedPaymentsEnabled()) return CARD_UNAVAILABLE;
+  return null;
 }
 
-class InsufficientBalance extends Error {
-  constructor() {
-    super("Tu saldo no alcanza. Usa otro método de pago.");
-  }
-}
+class PaymentUnavailable extends Error {}
 
 export async function buyCredits(packId: string, method: PayMethod = "CARD"): Promise<FormState> {
   const user = await requireUser("/creditos");
   if (isAdmin(user)) return { error: ADMIN_BLOCKED };
   const pack = CREDIT_PACKS.find((p) => p.id === packId);
   if (!pack) return { error: "Paquete no válido" };
+  const methodError = checkMethod(method);
+  if (methodError) return { error: methodError };
   const label = `Compra de ${pack.credits} créditos ($${pack.price.toFixed(2)})`;
   try {
     await db.$transaction(async (tx) => {
@@ -66,6 +56,7 @@ export async function subscribePlan(planId: string, method: PayMethod = "CARD"):
   if (planId !== "PRO" && planId !== "ELITE") return { error: "Plan no válido" };
   const target = planId as PlanId;
   const plan = PLANS[target];
+  if (method !== "CARD" && method !== "BALANCE") return { error: "Método de pago no válido" };
 
   let quote: PlanQuote;
   try {
@@ -75,15 +66,20 @@ export async function subscribePlan(planId: string, method: PayMethod = "CARD"):
       const current = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { plan: true, planRenewsAt: true } });
       const q = quotePlanChange(current, target);
       if (q.kind === "SAME") return q;
-      if (method === "BALANCE" && (q.kind === "NEW" || q.kind === "UPGRADE") && q.chargeCents > 0) {
-        const memo = q.kind === "UPGRADE" ? `Mejora a ${plan.label} (prorrateo de ${q.daysLeft} días)` : `Plan ${plan.label} (1 mes)`;
-        await chargeBalance(tx, user.id, q.chargeCents, memo);
+      if ((q.kind === "NEW" || q.kind === "UPGRADE") && q.chargeCents > 0) {
+        // Una bajada no cobra nada, así que solo se valida el método cuando hay cargo.
+        const methodError = checkMethod(method);
+        if (methodError) throw new PaymentUnavailable(methodError);
+        if (method === "BALANCE") {
+          const memo = q.kind === "UPGRADE" ? `Mejora a ${plan.label} (prorrateo de ${q.daysLeft} días)` : `Plan ${plan.label} (1 mes)`;
+          await chargeBalance(tx, user.id, q.chargeCents, memo);
+        }
       }
       await applyPlanChange(tx, user.id, target, q);
       return q;
     });
   } catch (e) {
-    if (e instanceof InsufficientBalance) return { error: e.message };
+    if (e instanceof InsufficientBalance || e instanceof PaymentUnavailable) return { error: e.message };
     throw e;
   }
 

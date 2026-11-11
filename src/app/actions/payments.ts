@@ -8,7 +8,7 @@ import { ADMIN_BLOCKED, isAdmin, requireUser } from "@/lib/auth";
 import { planOf } from "@/lib/constants";
 import { notify } from "@/lib/matching";
 import { EscrowError, notifyAdmins, paymentCode, releaseEscrow, walletSummary } from "@/lib/escrow";
-import { balance, post } from "@/lib/ledger";
+import { lockAccount, post } from "@/lib/ledger";
 import { ACCOUNTS, MIN_PAYOUT_CENTS, fmtCents, toCents } from "@/lib/money";
 import { UploadError, saveReceipt } from "@/lib/storage";
 import type { FormState } from "./auth";
@@ -177,24 +177,24 @@ export async function requestPayout(_: FormState, formData: FormData): Promise<F
   });
   if (!bank.bankAccountNumber) return { error: "Primero registra tu cuenta bancaria" };
 
-  const wallet = await walletSummary(user.id);
-  if (cents > wallet.withdrawable) return { error: `Puedes retirar hasta ${fmtCents(wallet.withdrawable)}` };
-
   try {
     await db.$transaction(async (tx) => {
-      // Re-verifica dentro de la transacción: dos retiros simultáneos no pueden sobregirar.
-      if ((await balance(ACCOUNTS.available(user.id), tx)) < cents) throw new EscrowError("Saldo insuficiente");
+      // Con la cuenta bloqueada, un segundo retiro simultáneo espera y ve el saldo ya descontado.
+      // walletSummary lee fuera de la transacción, pero ya incluye lo que confirmaron los retiros anteriores.
+      await lockAccount(tx, ACCOUNTS.available(user.id));
+      const wallet = await walletSummary(user.id);
+      if (cents > wallet.withdrawable) throw new EscrowError(`Puedes retirar hasta ${fmtCents(wallet.withdrawable)}`);
       const payout = await tx.payout.create({ data: { userId: user.id, amountCents: cents, bankSnapshot: JSON.stringify(bank) } });
-    await post(
-      tx,
-      [
-        { account: ACCOUNTS.available(user.id), amountCents: -cents },
-        { account: ACCOUNTS.payoutPending(user.id), amountCents: cents },
-      ],
-      "Retiro solicitado",
-      "PAYOUT",
-      payout.id,
-    );
+      await post(
+        tx,
+        [
+          { account: ACCOUNTS.available(user.id), amountCents: -cents },
+          { account: ACCOUNTS.payoutPending(user.id), amountCents: cents },
+        ],
+        "Retiro solicitado",
+        "PAYOUT",
+        payout.id,
+      );
     });
   } catch (e) {
     if (e instanceof EscrowError) return { error: e.message };

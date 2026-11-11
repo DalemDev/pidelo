@@ -24,6 +24,14 @@ export async function post(tx: Tx, legs: Leg[], memo: string, refType = "", refI
   return txId;
 }
 
+/**
+ * Bloquea una cuenta hasta que termine la transacción. Usar antes de leer un saldo para debitarlo:
+ * con READ COMMITTED, dos transacciones simultáneas podrían leer el mismo saldo y gastarlo dos veces.
+ */
+export async function lockAccount(tx: Tx, account: string) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${account}))`;
+}
+
 export async function balance(account: string, client: Tx | typeof db = db) {
   const r = await client.ledgerEntry.aggregate({ where: { account }, _sum: { amountCents: true } });
   return r._sum.amountCents ?? 0;

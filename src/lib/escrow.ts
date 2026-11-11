@@ -41,7 +41,12 @@ export async function confirmPayment(paymentId: string) {
       throw new EscrowError("La solicitud ya no está esperando este pago");
     }
 
-    await tx.payment.update({ where: { id: p.id }, data: { status: "CONFIRMED", confirmedAt: new Date() } });
+    // Condicionado al estado: si dos admins confirman a la vez (o doble clic), solo uno registra el dinero.
+    const { count } = await tx.payment.updateMany({
+      where: { id: p.id, status: { in: ["SUBMITTED", "PENDING"] } },
+      data: { status: "CONFIRMED", confirmedAt: new Date() },
+    });
+    if (!count) throw new EscrowError("Este pago ya fue procesado");
     await post(
       tx,
       [

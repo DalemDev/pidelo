@@ -43,7 +43,8 @@ Es un mercado inverso para Ecuador: la persona publica su necesidad (tutoría, t
   - El cobro con saldo y la activación del plan ocurren en una sola transacción.
 - **Vencimiento de solicitudes** (`src/lib/lifecycle.ts`): una solicitud abierta vence a los 14 días sin actividad (publicarla o volver a subirla) y **devuelve los créditos** a quienes ofertaron. El día 12 el cliente recibe un recordatorio. Si el cliente elige otra oferta, los créditos no se devuelven: pagan la oportunidad de competir.
 - **Gasto atómico:** `spendCredits` usa `updateMany … where credits >= n`, así que el saldo nunca queda negativo aunque haya requests simultáneos. Cada movimiento queda en `CreditTransaction`.
-- **Pagos simulados:** para producción, `buyCredits` y `subscribePlan` deben ejecutarse desde el **webhook** de la pasarela (PayPhone/Kushki) al confirmarse el pago, nunca directo desde el cliente.
+- **Pagos simulados:** "pagar con tarjeta" no cobra nada hasta integrar la pasarela. En producción está **bloqueado** (salvo `ALLOW_SIMULATED_PAYMENTS=1`, solo para demos): créditos y planes se pagan con el saldo de la billetera, y la renovación mensual también se cobra del saldo; si no alcanza, el plan termina. Al integrar la pasarela (PayPhone/Kushki), la compra con tarjeta debe ejecutarse desde su **webhook** al confirmarse el pago, nunca directo desde el cliente.
+- **Débitos de saldo serializados:** los cobros con saldo y los retiros bloquean la cuenta (`lockAccount`, advisory lock de Postgres) antes de leer el saldo, para que dos operaciones simultáneas no sobregiren.
 
 ### Pago retenido real (Fase 1: transferencia o DeUna + verificación manual)
 

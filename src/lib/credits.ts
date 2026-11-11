@@ -2,6 +2,9 @@ import "server-only";
 import { db } from "./db";
 import { PLANS, planOf, type PlanId } from "./constants";
 import type { PlanQuote } from "./plans";
+import { simulatedPaymentsEnabled } from "./env";
+import { balance, lockAccount, post } from "./ledger";
+import { ACCOUNTS, toCents } from "./money";
 
 export type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
 
@@ -12,6 +15,37 @@ export class InsufficientCredits extends Error {
   ) {
     super(`Necesitas ${needed} crédito${needed === 1 ? "" : "s"} y tienes ${balance}.`);
   }
+}
+
+export class InsufficientBalance extends Error {
+  constructor() {
+    super("Tu saldo no alcanza. Usa otro método de pago.");
+  }
+}
+
+/**
+ * Cobra con el saldo de la billetera (dinero ganado o reembolsado): el dinero no sale de la plataforma.
+ * Devuelve false si el saldo no alcanza. Bloquea la cuenta para que dos cobros simultáneos no sobregiren.
+ */
+export async function tryChargeBalance(tx: Tx, userId: string, cents: number, memo: string) {
+  const account = ACCOUNTS.available(userId);
+  await lockAccount(tx, account);
+  if ((await balance(account, tx)) < cents) return false;
+  await post(
+    tx,
+    [
+      { account, amountCents: -cents },
+      { account: ACCOUNTS.REVENUE, amountCents: cents },
+    ],
+    memo,
+    "PURCHASE",
+    userId,
+  );
+  return true;
+}
+
+export async function chargeBalance(tx: Tx, userId: string, cents: number, memo: string) {
+  if (!(await tryChargeBalance(tx, userId, cents, memo))) throw new InsufficientBalance();
 }
 
 /** Descuenta créditos de forma atómica: nunca deja el saldo en negativo aunque haya requests simultáneos. */
@@ -51,14 +85,30 @@ export async function refreshAccount(userId: string) {
     await db.$transaction(async (tx) => {
       // Condicionado a la fecha leída: si dos requests llegan a la vez, solo una renueva.
       if (user.planAutoRenew) {
-        // MVP: renovación simulada. En producción aquí se confirma el cobro recurrente de la pasarela.
         // Si había una bajada programada, se aplica ahora.
         const plan = planOf(user.nextPlan ?? user.plan);
         const { count } = await tx.user.updateMany({
           where: { id: userId, planRenewsAt: renewsAt },
           data: { plan: plan.id, nextPlan: null, planRenewsAt: new Date(renewsAt.getTime() + MONTH_MS), creditsGrantedAt: now },
         });
-        if (count) await grantCredits(tx, userId, plan.monthlyCredits, "PLAN", `Renovación plan ${plan.label}`);
+        if (!count) return;
+        // Sin pasarela, la renovación se cobra del saldo de la billetera (en desarrollo sigue simulada).
+        // Cuando exista cobro recurrente, aquí se confirma el cargo de la pasarela.
+        const paid =
+          simulatedPaymentsEnabled() || (await tryChargeBalance(tx, userId, toCents(plan.price), `Renovación plan ${plan.label}`));
+        if (paid) {
+          await grantCredits(tx, userId, plan.monthlyCredits, "PLAN", `Renovación plan ${plan.label}`);
+        } else {
+          await tx.user.update({ where: { id: userId }, data: { plan: "FREE", nextPlan: null, planRenewsAt: null } });
+          await tx.notification.create({
+            data: {
+              userId,
+              title: `⌛ Tu plan ${plan.label} terminó`,
+              body: "Tu saldo no alcanzó para renovarlo. Puedes volver a suscribirte cuando quieras.",
+              link: "/planes",
+            },
+          });
+        }
       } else {
         await tx.user.updateMany({ where: { id: userId, planRenewsAt: renewsAt }, data: { plan: "FREE", nextPlan: null, planRenewsAt: null } });
       }
