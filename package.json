@@ -11,11 +11,16 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "db:up": "docker compose up -d --wait",
     "db:deploy": "prisma migrate deploy",
     "vercel-build": "prisma migrate deploy && next build",
-    "data:encrypt-bank": "tsx --conditions=react-server scripts/encrypt-bank-data.ts"
+    "data:encrypt-bank": "tsx --conditions=react-server scripts/encrypt-bank-data.ts",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:watch": "vitest",
+    "db:test:create": "docker compose exec -T db createdb -U pidelo pidelo_test",
+    "check": "npm run lint && npm run typecheck && npm test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
@@ -42,7 +47,8 @@
     "prisma": "^7.10.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.12"
   },
   "allowScripts": {
     "prisma@7.10.1": true,

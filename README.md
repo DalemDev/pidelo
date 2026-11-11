@@ -1,166 +1,80 @@
-# Pídelo (nombre provisional)
+# Pídelo
 
 **Publica lo que necesitas. Alguien lo resuelve.**
 
-Es un mercado inverso para Ecuador: la persona publica su necesidad (tutoría, trámite, auditoría, reparación, "busco quien me venda…") y quienes pueden resolverla envían ofertas. Nace de los grupos de Facebook donde la gente pide ayuda y paga por ella, pero sin las esperas ni las estafas.
+Mercado inverso de servicios: la persona publica su necesidad (tutoría, trámite, auditoría, reparación, "busco quien me venda…") y quienes pueden resolverla envían ofertas. El pago queda retenido por la plataforma hasta que el cliente confirma el trabajo.
 
-## Qué incluye el MVP
+- **Arquitectura y decisiones de diseño:** [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md)
+- **Seguridad, OWASP y cumplimiento legal:** [docs/SEGURIDAD.md](docs/SEGURIDAD.md)
 
-| Función | Dónde |
+## Funcionalidades
+
+| Área | Qué hace |
 |---|---|
-| Registro/login (JWT en cookie httpOnly, bcrypt) | `src/lib/auth.ts`, `src/app/actions/auth.ts` |
-| **Asistente de publicación con IA**: texto libre → solicitud estructurada (categoría, tipo, ciudad, presupuesto sugerido, urgencia, preguntas faltantes, aviso de políticas) | `src/lib/ai.ts`, `src/app/publicar/` |
-| **Match instantáneo**: al publicar se notifica a quienes tienen esa habilidad (y misma ciudad si es presencial) | `src/lib/matching.ts` |
-| Feed con filtros (texto, categoría, tipo, ciudad, urgentes) y pestaña "Para ti" | `src/app/solicitudes/page.tsx` |
-| Ofertas (precio, días, mensaje) con cálculo de comisión | `src/app/solicitudes/[id]/` |
-| Chat privado por oferta (refresco cada 4 s) | `src/app/solicitudes/[id]/chat/[offerId]/` |
-| Ciclo completo: aceptar → pago protegido (simulado) → entregado → confirmar y liberar | `src/app/actions/requests.ts` |
-| Reseñas mutuas y reputación (promedio, trabajos completados) | `src/app/perfil/[id]/` |
-| Notificaciones in-app, panel "Mi actividad" con lo ganado | `src/app/notificaciones/`, `src/app/actividad/` |
+| Publicar | Texto libre → solicitud estructurada con un asistente (Claude; sin clave de API, clasificador local). Publicar es gratis; "urgente", "destacar" y "volver a subir" se pagan con créditos. |
+| Match | Al publicar se avisa a quienes tienen esa habilidad (y la ciudad, si es presencial), con acceso anticipado para planes Pro/Élite. |
+| Ofertas y chat | Ofertas con precio y plazo, chat privado por oferta. Antes del pago protegido se ocultan teléfonos, correos y enlaces, y se bloquean propuestas de pagar por fuera (reglas + IA en casos dudosos, con advertencias y suspensión). |
+| Pago protegido | Transferencia o DeUna con comprobante que verifica un administrador; plazo de 48 h para pagar; liberación al confirmar o a las 72 h; disputas con reembolso total, parcial o liberación. |
+| Billetera | Libro contable de doble entrada en centavos; retiros a cuenta bancaria propia (cifrada); retenciones antifraude. |
+| Monetización | Comisión 10/7/5 % según plan, créditos y planes Pro/Élite con prorrateo. |
+| Cuenta | Registro con aceptación de términos, recuperación de contraseña por correo, sesiones revocables, descarga de datos y eliminación de la cuenta. |
+| Administración | Pagos por verificar, disputas, retiros, conciliación del libro e intentos de fuga; cada acción queda en el registro de auditoría. |
 
-### Cuentas
+Stack: Next.js 16 (App Router, Server Actions) · Prisma 7 + PostgreSQL · Tailwind 4 · Claude API · S3/R2 · Resend.
 
-- **Límite de intentos de login** (`src/lib/rate-limit.ts`): 5 fallos por correo o 20 por IP en 15 minutos bloquean el ingreso hasta que se libere la ventana. Mientras está bloqueado ni siquiera se compara la contraseña. Los intentos se guardan en la tabla `AuthAttempt`.
-- **Recuperación de contraseña** (`/recuperar`): envía un enlace de un solo uso que vence en 1 hora. En la base solo se guarda el hash del token. La respuesta es la misma exista o no la cuenta, y se limita a 3 pedidos por correo (10 por IP) por hora. Al cambiar la contraseña se cierran las sesiones abiertas en otros dispositivos (`User.sessionsValidAfter`) y se borran los intentos fallidos.
-- **Correo** (`src/lib/mail.ts`): usa Resend por su API HTTP. En desarrollo, sin `RESEND_API_KEY`, el correo se imprime en la consola del servidor.
+## Desarrollo
 
-### Anti-fuga (evitar que el pago se haga por fuera)
-
-- **Filtro de contacto** (`src/lib/contact-filter.ts`): oculta teléfonos (09…, +593, dígitos separados o en palabras), correos (incluso "arroba … punto com"), enlaces, wa.me y @usuarios. Bloquea frases como "por fuera", "sin comisión", "págame directo" o "te paso mi WhatsApp".
-- **IA para casos ambiguos** (`src/lib/moderation.ts`): si hay señales débiles ("búscame en Facebook", "mi número está en mi perfil"), Claude decide. Solo se llama en esos casos, para no gastar en cada mensaje.
-- Se aplica al **chat, a las ofertas y a las publicaciones**. En el chat, el contacto se desbloquea cuando la oferta es aceptada y el pago queda protegido.
-- **Strikes**: cada intento suma una advertencia y una notificación. Con 3 se pierde el match instantáneo y las ofertas van al final del ranking; con 5 la cuenta se suspende 7 días. Todo queda en la tabla `Violation` para moderación.
-- **Textos de valor**: cobro asegurado para quien ofrece, dinero retenido para quien pide, y "por fuera no hay garantía ni reseñas".
-
-### Modelo de negocio
-
-**Publicar es gratis.** Se cobra donde no frena la demanda:
-
-| Fuente | Detalle | Código |
-|---|---|---|
-| **Comisión** sobre el pago protegido | 10 % Gratis · 7 % Pro · 5 % Élite. Se congela al aceptar la oferta (`Offer.feeRate`). | `acceptOffer` |
-| **Créditos** (1 ≈ $0.20) | Paquetes: 10/$2, 30/$5, 75/$10. Ofertar cuesta 1 a 3 según el presupuesto (se devuelven si el cliente cancela). Quien pide los usa para ⚡ urgente (5), ⭐ destacar 3 días (3) o 🔄 volver a subir (2, una vez al día). | `src/lib/credits.ts`, `src/app/actions/billing.ts` |
-| **Suscripciones** para quienes ofrecen | Pro $4.99 (30 créditos/mes) · Élite $12.99 (80 créditos/mes). **Acceso anticipado de 10 min** a solicitudes nuevas (solo si hay algún Pro/Élite que coincida; si no, se abre a todos de inmediato), ofertas primero en el ranking, insignias, plantilla de oferta y estadísticas (Élite). | `src/lib/constants.ts` (`PLANS`), `src/lib/matching.ts`, `src/lib/feed.ts` |
-
-- **Sin cron:** `refreshAccount()` corre al renderizar el navbar. Entrega los 5 créditos mensuales del plan gratis y renueva o vence los planes pagados (una sola vez aunque lleguen visitas simultáneas).
-- **Cambios de plan** (`src/lib/plans.ts`):
-  - **Subir de plan** a mitad de ciclo: se cobra solo la diferencia por los días restantes y se entregan los créditos proporcionales; la fecha de renovación no cambia.
-  - **Bajar de plan:** no hay reembolso; el cambio queda programado (`nextPlan`) y se aplica en la próxima renovación. Se puede anular con "Mantener mi plan".
-  - El cobro con saldo y la activación del plan ocurren en una sola transacción.
-- **Plazo de pago** (`src/lib/lifecycle.ts`): quien elige una oferta tiene 48 h para subir el comprobante (contadas desde que eligió o desde el último comprobante rechazado). Si vence, el pago se cancela, la oferta vuelve a competir y la solicitud se reabre con su plazo de 14 días reiniciado. Los comprobantes en revisión no vencen.
-- **Vencimiento de solicitudes** (`src/lib/lifecycle.ts`): una solicitud abierta vence a los 14 días sin actividad (publicarla o volver a subirla) y **devuelve los créditos** a quienes ofertaron. El día 12 el cliente recibe un recordatorio. Si el cliente elige otra oferta, los créditos no se devuelven: pagan la oportunidad de competir.
-- **Gasto atómico:** `spendCredits` usa `updateMany … where credits >= n`, así que el saldo nunca queda negativo aunque haya requests simultáneos. Cada movimiento queda en `CreditTransaction`.
-- **Pagos simulados:** "pagar con tarjeta" no cobra nada hasta integrar la pasarela. En producción está **bloqueado** (salvo `ALLOW_SIMULATED_PAYMENTS=1`, solo para demos): créditos y planes se pagan con el saldo de la billetera, y la renovación mensual también se cobra del saldo; si no alcanza, el plan termina. Al integrar la pasarela (PayPhone/Kushki), la compra con tarjeta debe ejecutarse desde su **webhook** al confirmarse el pago, nunca directo desde el cliente.
-- **Débitos de saldo serializados:** los cobros con saldo y los retiros bloquean la cuenta (`lockAccount`, advisory lock de Postgres) antes de leer el saldo, para que dos operaciones simultáneas no sobregiren.
-
-### Pago retenido real (Fase 1: transferencia o DeUna + verificación manual)
-
-```
-Cliente elige oferta → AWAITING_PAYMENT → paga con código PID-XXXXXX y sube comprobante
-   → Admin verifica en el banco y confirma → HELD (el proveedor empieza)
-   → Proveedor entrega → el cliente confirma, o pasan 72 h → RELEASED → billetera del proveedor
-   → "Tengo un problema" → DISPUTED (congelado) → el admin resuelve: reembolso, liberación o reparto
-   → El proveedor retira a su cuenta → el admin transfiere y marca como pagado
-```
-
-- **Libro contable de doble entrada** (`LedgerEntry`, `src/lib/ledger.ts`): cada transacción suma cero y los saldos se calculan desde los asientos, en centavos enteros. Cuentas: `WORLD`, `ESCROW:<solicitud>`, `AVAILABLE:<usuario>`, `PAYOUT_PENDING:<usuario>` y `REVENUE`. Los asientos no se editan; se corrigen con transacciones inversas.
-- **Operaciones** en `src/lib/escrow.ts`: confirmar pago, liberar (con guarda contra doble liberación), reembolsar, resolver disputas, liberación automática y resumen de billetera.
-- **Billetera** (`/billetera`): saldo disponible, retenido, retiros en proceso y total retirado, más la cuenta bancaria. Mínimo de retiro: $10. Los proveedores con menos de 3 trabajos esperan 7 días antes de retirar lo liberado (protección ante fraude). Los reembolsos van al saldo del cliente, que puede retirarlos o **usarlos para créditos y planes**.
-- **Panel `/admin`** (usuario `admin@demo.ec`): pagos por verificar con visor de comprobante, disputas, retiros (con alerta si el titular no coincide), **conciliación** (verifica que el libro cuadre y que no queden escrows con saldo en solicitudes cerradas) e intentos de fuga.
-- **Comprobantes**: en desarrollo se guardan en `storage/receipts/`; en producción, en un bucket privado S3/R2 (`STORAGE_DRIVER=s3`). Solo los ven quien pagó o un admin (`/api/comprobantes/[id]`).
-- **Datos bancarios de la empresa**: variables `PAY_BANK_NAME`, `PAY_ACCOUNT_TYPE`, `PAY_ACCOUNT_NUMBER`, `PAY_HOLDER`, `PAY_RUC` y `PAY_DEUNA` en `.env`.
-- **Liberación a las 72 h, plazo de pago y vencimiento de solicitudes**: ocurren al navegar y, en producción, también con `GET /api/cron/liberar` y el header `Authorization: Bearer $CRON_SECRET` (por ejemplo, Vercel Cron cada hora).
-
-Para publicar y para lo que falta antes de cobrar dinero real, ver [Publicar en producción](#publicar-en-producción).
-
-Stack: **Next.js 16** (App Router, Server Actions) · **Prisma 7** + PostgreSQL · Tailwind 4 · Claude API (`@anthropic-ai/sdk`) · almacenamiento S3/R2.
-
-## Cómo correrlo (desarrollo)
-
-Requisitos: Node.js 20+ y Docker Desktop (para PostgreSQL local).
+Requisitos: Node.js 20+ y Docker.
 
 ```bash
 npm install
 cp .env.example .env        # y define SESSION_SECRET
 npm run db:up               # PostgreSQL 17 en Docker (localhost:5432)
 npx prisma migrate dev      # crea las tablas
-npm run db:seed             # datos demo
+npm run db:seed             # datos de prueba (BORRA la base; bloqueado en producción)
 npm run dev                 # http://localhost:3000
 ```
 
-Usuarios demo (clave `demo1234`): `ana@demo.ec` (quien pide), `carlos@demo.ec` (tutor/tecnología, Quito), `maria@demo.ec` (contadora, Guayaquil), `jose@demo.ec` (hogar/mandados), `lucia@demo.ec` (diseño/marketing, Cuenca) y `admin@demo.ec` (panel de administración).
+Los datos de prueba crean usuarios con la clave `demo1234`: `ana@demo.ec` (cliente), `carlos@demo.ec`, `maria@demo.ec`, `jose@demo.ec`, `lucia@demo.ec` (proveedores) y `admin@demo.ec` (administración).
 
-Comprobación rápida: `GET /api/health` responde `{"ok":true,"db":"ok"}` si la app y la base de datos están bien.
+En desarrollo, sin `RESEND_API_KEY`, los correos (p. ej. recuperación de contraseña) se imprimen en la consola del servidor, y los trabajos programados corren al navegar (como mucho una vez por minuto).
 
-### Asistente de IA
+### Pruebas y calidad
 
-- **Sin `ANTHROPIC_API_KEY`** se usa un clasificador local por palabras clave. Funciona, pero es básico.
-- **Con `ANTHROPIC_API_KEY`** se usa Claude Opus 5 con salida estructurada (esquema Zod), `effort: "low"` y `fallbacks: "default"`: si el modelo rechaza la solicitud, se reintenta en otro modelo del lado del servidor. Si la API falla, vuelve al clasificador local.
-- Regla de negocio incluida: si piden "hazme la tarea", la IA lo reformula como tutoría y lo avisa en pantalla.
+```bash
+npm run db:test:create      # una sola vez: crea la base pidelo_test en el contenedor
+TEST_DATABASE_URL="postgresql://pidelo:pidelo@localhost:5432/pidelo_test" npm test
+npm run check               # lint + tipos + pruebas
+```
 
-## Publicar en producción
+- `tests/unit`: reglas de dominio puras (dinero, planes, políticas, filtro de contacto, validación, cifrado).
+- `tests/integration`: servicios contra PostgreSQL, incluidas las carreras de condición con dinero (cobros y retiros simultáneos, confirmaciones duplicadas, cancelaciones concurrentes, disputas). Sin `TEST_DATABASE_URL` se omiten.
+- CI (`.github/workflows/ci.yml`): auditoría de dependencias, lint, tipos, pruebas con PostgreSQL y build en cada push y pull request.
 
-La app está preparada para **Vercel + PostgreSQL gestionado + Cloudflare R2** (u otros equivalentes). Al arrancar en producción, `src/instrumentation.ts` verifica la configuración y **se niega a arrancar** si falta algo: secretos, cron, almacenamiento en la nube o datos bancarios reales. El error lista exactamente qué variable falta.
+## Producción
 
-### 1. Base de datos (Neon, Supabase o Prisma Postgres)
-1. Crea un proyecto PostgreSQL, idealmente en una región cercana a la de Vercel (por ejemplo, `us-east`).
-2. Copia **dos** cadenas de conexión:
-   - **Pooled** (con pooler, p. ej. host `...-pooler...` en Neon) → `DATABASE_URL`. La usa la app.
-   - **Directa** → `DIRECT_URL`. La usan las migraciones.
+La app está preparada para **Vercel + PostgreSQL gestionado (Neon/Supabase) + Cloudflare R2 + Resend**. Al arrancar en producción, `src/instrumentation.ts` valida la configuración y **se niega a arrancar** si falta algo, indicando qué variable.
 
-### 2. Almacenamiento de comprobantes (Cloudflare R2)
-1. En Cloudflare → R2, crea un bucket **privado** (por ejemplo, `pidelo-comprobantes`). No actives el acceso público.
-2. Crea un token de API de R2 con permiso de lectura y escritura sobre ese bucket.
-3. Anota el Account ID, el Access Key ID y el Secret Access Key.
+1. **Base de datos:** URL *pooled* en `DATABASE_URL` y directa en `DIRECT_URL`. Activa backups automáticos.
+2. **Comprobantes:** bucket **privado** en R2 o S3 con un token de lectura/escritura solo para ese bucket.
+3. **Correo:** dominio verificado en Resend (SPF/DKIM) para `MAIL_FROM`.
+4. **Variables:** todas las de `.env.example` marcadas como obligatorias, en especial `SESSION_SECRET`, `CRON_SECRET`, `DATA_ENCRYPTION_KEY` (guárdala también en un gestor de secretos: sin ella no se pueden leer los datos bancarios), datos `LEGAL_*` y `PAY_*`.
+5. **Despliegue:** `npm run vercel-build` aplica migraciones y compila. `vercel.json` programa el cron cada hora (liberación a 72 h, plazo de pago, vencimientos y purga de registros).
+6. **Después de publicar:** crea tu usuario y cambia su `role` a `ADMIN` en la base; si migras datos anteriores, ejecuta `npm run data:encrypt-bank`; apunta un monitor a `/api/health`.
 
-Con AWS S3 funciona igual: deja `S3_ENDPOINT` vacío y usa la región del bucket.
+### Antes de cobrar dinero real
 
-### 3. Vercel
-1. Importa el repositorio en Vercel (framework: Next.js). El build usa `npm run vercel-build`, que **aplica las migraciones** (`prisma migrate deploy`) y luego compila.
-2. En *Settings → Environment Variables* define:
+- Revisión de **términos, privacidad y cookies** (`src/app/legal/*`) por un abogado.
+- Esquema tributario con contador: comerciante de registro, **facturación electrónica SRI** de comisiones, créditos y planes (no implementada en el código) y retenciones.
+- Registro como responsable de tratamiento y designación de delegado de protección de datos si corresponde (LOPDP).
+- Integrar la pasarela (PayPhone o Kushki): su webhook debe llamar a `confirmPayment` en `src/server/services/escrow.ts` y la compra de créditos/planes debe confirmarse desde el webhook.
 
-| Variable | Valor |
-|---|---|
-| `DATABASE_URL` | URL pooled de Postgres |
-| `DIRECT_URL` | URL directa de Postgres |
-| `SESSION_SECRET` | 64 caracteres aleatorios (ver `.env.example`) |
-| `CRON_SECRET` | Otro valor aleatorio |
-| `STORAGE_DRIVER` | `s3` |
-| `S3_BUCKET` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | Datos de R2 |
-| `S3_REGION` | `auto` |
-| `S3_ENDPOINT` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |
-| `PAY_BANK_NAME`, `PAY_ACCOUNT_TYPE`, `PAY_ACCOUNT_NUMBER`, `PAY_HOLDER`, `PAY_RUC`, `PAY_DEUNA` | Cuenta real de la empresa |
-| `APP_URL` | URL pública, p. ej. `https://pidelo.ec` (enlaces de los correos) |
-| `RESEND_API_KEY` / `MAIL_FROM` | Correo transaccional (recuperación de contraseña); el remitente debe ser de un dominio verificado en Resend |
-| `ANTHROPIC_API_KEY` | Opcional: activa el asistente con IA |
+## Hoja de ruta
 
-3. **Cron:** `vercel.json` programa `/api/cron/liberar` cada hora (liberación a las 72 h y vencimiento de solicitudes). Vercel envía `CRON_SECRET` automáticamente. El plan gratuito de Vercel solo permite crons diarios; con él, cambia el horario a `0 6 * * *`. La app igual ejecuta estas tareas cuando alguien navega.
-4. Publica. Luego verifica `https://<tu-dominio>/api/health`.
-
-### 4. Después de publicar
-- **Crear el administrador:** regístrate normalmente y, en la base de datos, cambia el `role` de tu usuario a `ADMIN`. No uses el seed en producción: crea cuentas demo con clave conocida.
-- **Dominio propio:** en Vercel → Domains.
-- **Monitoreo:** apunta un servicio como UptimeRobot a `/api/health`.
-- **Respaldos:** activa los backups automáticos del proveedor de Postgres.
-
-### 5. Antes de cobrar dinero real
-- Valida el esquema legal y tributario con abogado y contador: comerciante de registro, facturación SRI y retenciones.
-- **Fase 2:** integra la pasarela (PayPhone o Kushki). Su webhook debe llamar a `confirmPayment(paymentId)` en `src/lib/escrow.ts`; el resto del flujo ya está listo.
-
-**Seguridad incluida:**
-- **Cabeceras:** HSTS, X-Frame-Options, nosniff, Referrer-Policy y Permissions-Policy.
-- **Comprobantes:** se verifica el contenido real del archivo, no solo el tipo que declara el navegador.
-- **Bucket privado:** los comprobantes solo se sirven con control de acceso.
-
-## Hoja de ruta sugerida
-
-- [ ] Notificaciones por **WhatsApp** (WhatsApp Business API) y push web: es la clave del "respuesta en minutos".
-- [ ] Chat en tiempo real (SSE/WebSockets o Pusher/Ably) en lugar del refresco periódico.
-- [ ] Verificación de identidad (cédula) e insignia de "verificado".
-- [ ] Adjuntar archivos a solicitudes y entregas (S3/R2).
-- [ ] Moderación con IA al publicar y reportes de usuarios.
-- [ ] Solicitudes destacadas o urgentes de pago (monetización extra).
-- [ ] Disputas: botón "tengo un problema" antes de liberar el pago.
-- [x] Recuperación de contraseña y límite de intentos de login.
-- [ ] Verificación de correo al registrarse.
+- [ ] Notificaciones por WhatsApp y correo (implementar `NotificationChannel` en `src/server/services/notifications.ts`).
+- [ ] Chat en tiempo real (SSE/WebSockets) en lugar del refresco periódico.
+- [ ] Verificación de identidad (cédula) e insignia de verificado.
+- [ ] Verificación del correo al registrarse.
+- [ ] Adjuntos en solicitudes y entregas.
+- [ ] Facturación electrónica SRI.
 - [ ] App móvil (PWA primero).

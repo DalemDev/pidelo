@@ -8,7 +8,12 @@ export function proxy(request: NextRequest) {
   const csp = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
+    // Hojas y <style> con nonce; los atributos style (los usan React y Next) no ejecutan código.
+    // En desarrollo la recarga en caliente inyecta <style> sin nonce (con nonce presente, el navegador
+    // ignora 'unsafe-inline', por eso la excepción va solo en style-src-elem).
     `style-src 'self' 'nonce-${nonce}'`,
+    `style-src-elem 'self' ${isDev ? "'unsafe-inline'" : `'nonce-${nonce}'`}`,
+    "style-src-attr 'unsafe-inline'",
     "img-src 'self' blob: data:",
     "font-src 'self'",
     "connect-src 'self'",
