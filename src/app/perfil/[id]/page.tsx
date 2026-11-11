@@ -58,7 +58,7 @@ export default async function ProfilePage({ params }: PageProps<"/perfil/[id]">)
             {profile.name} <PlanBadge plan={profile.plan} />
           </h1>
           <div className="mt-1 text-sm text-zinc-500">
-            📍 {profile.city} · En Pídelo desde {profile.createdAt.toLocaleDateString("es-EC", { month: "long", year: "numeric" })}
+            {profile.city} · En Pídelo desde {profile.createdAt.toLocaleDateString("es-EC", { month: "long", year: "numeric" })}
           </div>
           {profile.bio && <p className="mt-3 max-w-2xl text-zinc-700">{profile.bio}</p>}
           {skills.length > 0 && (

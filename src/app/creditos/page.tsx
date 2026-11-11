@@ -8,18 +8,20 @@ import { timeAgo } from "@/domain/format";
 import { BuyPackButton } from "./buy-button";
 import { balance } from "@/server/services/ledger";
 import { ACCOUNTS } from "@/domain/money";
+import { simulatedPaymentsEnabled } from "@/server/config/env";
 
 export const metadata: Metadata = { title: "Mis créditos" };
 
-const REASON_ICON: Record<string, string> = {
-  PURCHASE: "🛒",
-  MONTHLY: "🎁",
-  PLAN: "✨",
-  OFFER: "💬",
-  FEATURE: "⭐",
-  URGENT: "⚡",
-  BUMP: "🔄",
-  REFUND: "↩️",
+// Etiqueta corta del tipo de movimiento.
+const REASON_LABEL: Record<string, string> = {
+  PURCHASE: "Compra",
+  MONTHLY: "Mensual",
+  PLAN: "Plan",
+  OFFER: "Oferta",
+  FEATURE: "Destacar",
+  URGENT: "Urgente",
+  BUMP: "Subir",
+  REFUND: "Devolución",
 };
 
 export default async function CreditsPage() {
@@ -30,6 +32,7 @@ export default async function CreditsPage() {
     balance(ACCOUNTS.available(session.id)),
   ]);
   const plan = planOf(user.plan);
+  const cardEnabled = simulatedPaymentsEnabled();
   const nextGrant =
     user.plan === "FREE"
       ? user.creditsGrantedAt && new Date(user.creditsGrantedAt.getTime() + 30 * 86400_000)
@@ -44,7 +47,7 @@ export default async function CreditsPage() {
         <div className="card flex flex-col justify-between bg-gradient-to-br from-sun-100 to-white p-6">
           <div>
             <div className="text-sm font-semibold text-amber-900">Saldo disponible</div>
-            <div className="mt-1 font-display text-5xl font-bold">🪙 {user.credits}</div>
+            <div className="mt-1 font-display text-5xl font-bold">{user.credits} <span className="text-2xl font-semibold text-zinc-500">créditos</span></div>
           </div>
           <div className="mt-4 text-sm text-zinc-600">
             Plan <b>{plan.label}</b>: {plan.monthlyCredits} créditos cada mes
@@ -61,19 +64,19 @@ export default async function CreditsPage() {
           <h2 className="font-semibold">¿En qué se usan?</h2>
           <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
             <div className="rounded-xl bg-zinc-50 p-3">
-              <b>💬 Enviar una oferta</b>
+              <b>Enviar una oferta</b>
               <p className="text-zinc-600">1 crédito (presupuesto &lt; $20), 2 (hasta $100) o 3 (más de $100). Te lo devolvemos si el cliente cancela.</p>
             </div>
             <div className="rounded-xl bg-zinc-50 p-3">
-              <b>⚡ Marcar urgente · {BOOST_COSTS.URGENT}</b>
+              <b>Marcar urgente · {BOOST_COSTS.URGENT}</b>
               <p className="text-zinc-600">Tu solicitud sube arriba y se avisa con prioridad.</p>
             </div>
             <div className="rounded-xl bg-zinc-50 p-3">
-              <b>⭐ Destacar · {BOOST_COSTS.FEATURE}</b>
+              <b>Destacar · {BOOST_COSTS.FEATURE}</b>
               <p className="text-zinc-600">Primera posición y diseño resaltado por {FEATURE_DAYS} días.</p>
             </div>
             <div className="rounded-xl bg-zinc-50 p-3">
-              <b>🔄 Volver a subir · {BOOST_COSTS.BUMP}</b>
+              <b>Volver a subir · {BOOST_COSTS.BUMP}</b>
               <p className="text-zinc-600">Tu solicitud vuelve al inicio del listado (1 vez al día).</p>
             </div>
           </div>
@@ -85,15 +88,19 @@ export default async function CreditsPage() {
         {CREDIT_PACKS.map((p, i) => (
           <div key={p.id} className={`card relative flex flex-col items-center p-6 text-center ${i === 1 ? "border-brand-300 ring-2 ring-brand-100" : ""}`}>
             {i === 1 && <span className="chip absolute -top-3 bg-brand-600 text-white">Más popular</span>}
-            <div className="font-display text-4xl font-bold">🪙 {p.credits}</div>
+            <div className="font-display text-4xl font-bold">{p.credits}</div>
             <div className="mt-1 text-sm text-zinc-500">créditos {p.bonus && <b className="text-emerald-700">({p.bonus})</b>}</div>
             <div className="mt-4 font-display text-2xl font-bold">${p.price.toFixed(2)}</div>
             <div className="text-xs text-zinc-400">${(p.price / p.credits).toFixed(3)} por crédito</div>
-            <BuyPackButton packId={p.id} canUseBalance={walletCents >= p.price * 100} />
+            <BuyPackButton packId={p.id} canUseBalance={walletCents >= p.price * 100} cardEnabled={cardEnabled} />
           </div>
         ))}
       </div>
-      <p className="mt-2 text-xs text-zinc-400">MVP: compra simulada, no se cobra dinero real. En producción: PayPhone, Kushki o DeUna.</p>
+      <p className="mt-2 text-xs text-zinc-400">
+        {cardEnabled
+          ? "Entorno de pruebas: el pago con tarjeta no cobra dinero real."
+          : "Los créditos se pagan con el saldo de tu billetera (lo que ganas o te reembolsan)."}
+      </p>
 
       <h2 className="mt-10 font-display text-xl font-bold">Historial</h2>
       <div className="card mt-3 divide-y divide-zinc-100">
@@ -102,7 +109,7 @@ export default async function CreditsPage() {
         ) : (
           history.map((t) => (
             <div key={t.id} className="flex items-center gap-3 px-5 py-3 text-sm">
-              <span className="text-lg">{REASON_ICON[t.reason] ?? "•"}</span>
+              <span className="chip w-24 shrink-0 justify-center bg-zinc-100 text-zinc-600">{REASON_LABEL[t.reason] ?? "Otro"}</span>
               <div className="min-w-0 flex-1">
                 <div className="truncate">{t.description}</div>
                 <div className="text-xs text-zinc-400">{timeAgo(t.createdAt)}</div>

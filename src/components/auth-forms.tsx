@@ -63,6 +63,21 @@ export function RegisterForm({ next }: { next?: string }) {
         <input className="input" id="password" name="password" type="password" minLength={8} required autoComplete="new-password" />
       </div>
       <SkillsPicker />
+      <div className="space-y-2 text-sm text-zinc-700">
+        <label className="flex items-start gap-2">
+          <input type="checkbox" name="acceptTerms" required className="mt-1" />
+          <span>
+            Acepto los{" "}
+            <Link href="/legal/terminos" target="_blank" className="font-semibold text-brand-600">términos y condiciones</Link> y autorizo el
+            tratamiento de mis datos según la{" "}
+            <Link href="/legal/privacidad" target="_blank" className="font-semibold text-brand-600">política de privacidad</Link>.
+          </span>
+        </label>
+        <label className="flex items-start gap-2">
+          <input type="checkbox" name="adult" required className="mt-1" />
+          <span>Declaro que tengo 18 años o más.</span>
+        </label>
+      </div>
       <FormMessage state={state} />
       <SubmitButton className="w-full">Crear cuenta</SubmitButton>
       <p className="text-center text-sm text-zinc-600">

@@ -76,11 +76,11 @@ export default async function AdminPage() {
   const titleOf = new Map(titles.map((r) => [r.id, r.title]));
   const label = (account: string) => {
     const [kind, id = ""] = account.split(":");
-    if (kind === "WORLD") return "🌎 Exterior (banco)";
-    if (kind === "REVENUE") return "📈 Ingresos Pídelo";
-    if (kind === "ESCROW") return `🛡️ Retenido · ${titleOf.get(id) ?? id.slice(0, 6)}`;
-    if (kind === "AVAILABLE") return `💰 Saldo de ${nameOf.get(id) ?? id.slice(0, 6)}`;
-    if (kind === "PAYOUT_PENDING") return `🏦 Retiro en proceso · ${nameOf.get(id) ?? id.slice(0, 6)}`;
+    if (kind === "WORLD") return "Exterior (banco)";
+    if (kind === "REVENUE") return "Ingresos Pídelo";
+    if (kind === "ESCROW") return `Retenido · ${titleOf.get(id) ?? id.slice(0, 6)}`;
+    if (kind === "AVAILABLE") return `Saldo de ${nameOf.get(id) ?? id.slice(0, 6)}`;
+    if (kind === "PAYOUT_PENDING") return `Retiro en proceso · ${nameOf.get(id) ?? id.slice(0, 6)}`;
     return account;
   };
   const txs: { txId: string; memo: string; createdAt: Date; legs: typeof recentTx }[] = [];
@@ -103,7 +103,7 @@ export default async function AdminPage() {
       </div>
 
       {/* Pagos */}
-      <Section id="pagos" title="🧾 Pagos por verificar" empty={!payments.length}>
+      <Section id="pagos" title="Pagos por verificar" empty={!payments.length}>
         {payments.map((p) => (
           <div key={p.id} className="card p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -120,7 +120,7 @@ export default async function AdminPage() {
               <div className="text-right">
                 <div className="font-display text-2xl font-bold">{fmtCents(p.amountCents)}</div>
                 <a href={`/api/comprobantes/${p.id}`} target="_blank" className="text-sm font-semibold text-brand-600">
-                  Ver comprobante ↗
+                  Ver comprobante 
                 </a>
               </div>
             </div>
@@ -138,7 +138,7 @@ export default async function AdminPage() {
       </Section>
 
       {/* Disputas */}
-      <Section id="disputas" title="⚖️ Disputas abiertas" empty={!disputes.length}>
+      <Section id="disputas" title="Disputas abiertas" empty={!disputes.length}>
         {disputes.map((d) => {
           const held = disputeHeld.get(d.request.id) ?? 0;
           return (
@@ -170,7 +170,7 @@ export default async function AdminPage() {
       </Section>
 
       {/* Retiros */}
-      <Section id="retiros" title="🏦 Retiros por transferir" empty={!payouts.length}>
+      <Section id="retiros" title="Retiros por transferir" empty={!payouts.length}>
         {payouts.map((p) => {
           const b = readBankSnapshot(p.bankSnapshot);
           const nameMismatch = b.bankHolderName?.trim().toLowerCase() !== p.user.name.trim().toLowerCase();
@@ -183,7 +183,7 @@ export default async function AdminPage() {
                     {b.bankName} · {b.bankAccountType === "CORRIENTE" ? "Corriente" : "Ahorros"} · <span className="font-mono">{b.bankAccountNumber}</span>
                   </div>
                   <div>Titular: {b.bankHolderName} · CI/RUC {b.bankHolderId}</div>
-                  {nameMismatch && <div className="mt-1 text-xs font-semibold text-rose-700">⚠️ El titular no coincide con el nombre del usuario</div>}
+                  {nameMismatch && <div className="mt-1 text-xs font-semibold text-rose-700">El titular no coincide con el nombre del usuario</div>}
                 </div>
                 <div className="text-right">
                   <div className="font-display text-2xl font-bold">{fmtCents(p.amountCents)}</div>
@@ -205,10 +205,10 @@ export default async function AdminPage() {
 
       {/* Conciliación */}
       <section className="mt-10">
-        <h2 className="font-display text-xl font-bold">📒 Conciliación</h2>
+        <h2 className="font-display text-xl font-bold">Conciliación</h2>
         <div className={`mt-3 rounded-2xl p-4 text-sm ${balanced && !anomalies.length ? "bg-emerald-50 text-emerald-900" : "bg-rose-50 text-rose-900"}`}>
           {balanced ? "✓ El libro cuadra: cada dólar recibido está en una cuenta." : "✗ El libro NO cuadra: revisa los asientos."}
-          {anomalies.length > 0 && <> · ⚠️ {anomalies.length} escrow(s) con saldo en solicitudes cerradas.</>}
+          {anomalies.length > 0 && <> · {anomalies.length} escrow(s) con saldo en solicitudes cerradas.</>}
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Money label="Recibido neto (debe estar en el banco)" cents={-world} />
@@ -223,7 +223,7 @@ export default async function AdminPage() {
         </p>
         {anomalies.map((a) => (
           <div key={a.id} className="mt-2 text-sm text-rose-800">
-            ⚠️ <Link href={`/solicitudes/${a.id}`} className="underline">{a.title}</Link> (estado {a.escrow})
+            <Link href={`/solicitudes/${a.id}`} className="underline">{a.title}</Link> (estado {a.escrow})
           </div>
         ))}
 
@@ -258,7 +258,7 @@ export default async function AdminPage() {
       {/* Moderación */}
       {violations.length > 0 && (
         <section className="mt-10">
-          <h2 className="font-display text-xl font-bold">🛡️ Intentos de fuga recientes</h2>
+          <h2 className="font-display text-xl font-bold">Intentos de fuga recientes</h2>
           <div className="card mt-3 divide-y divide-zinc-100 text-sm">
             {violations.map((v) => (
               <div key={v.id} className="px-5 py-3">
@@ -295,7 +295,7 @@ function Section({ id, title, empty, children }: { id: string; title: string; em
   return (
     <section id={id} className="mt-10 scroll-mt-24">
       <h2 className="font-display text-xl font-bold">{title}</h2>
-      <div className="mt-3 space-y-3">{empty ? <p className="text-sm text-zinc-500">Nada pendiente. 🎉</p> : children}</div>
+      <div className="mt-3 space-y-3">{empty ? <p className="text-sm text-zinc-500">Nada pendiente. </p> : children}</div>
     </section>
   );
 }

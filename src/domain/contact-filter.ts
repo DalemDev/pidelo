@@ -1,7 +1,7 @@
 // Filtro determinista de datos de contacto y de intentos de pagar por fuera.
 // Módulo puro (sin dependencias de servidor) para poder probarlo aislado.
 
-export const MASK = "[🔒 dato oculto]";
+export const MASK = "[dato oculto]";
 
 // Dominios que se pueden mencionar libremente (trámites públicos, universidades).
 const ALLOWED_DOMAINS = /\.(?:gob|edu)\.ec\b/i;

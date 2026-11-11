@@ -1,4 +1,4 @@
-// Esquema de datos de Pídelo (nombre provisional).
+// Esquema de datos de Pídelo.
 // PostgreSQL en desarrollo (docker compose) y en producción (servicio gestionado).
 
 generator client {

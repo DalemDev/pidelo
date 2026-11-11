@@ -44,7 +44,7 @@ export default async function PaymentPage({ params }: PageProps<"/pagos/[id]">) 
       <p className="mt-1 text-zinc-600">{st.text}</p>
       {canPay && (
         <p className="mt-2 text-sm text-amber-800">
-          ⌛ Tienes hasta el{" "}
+          Tienes hasta el{" "}
           <b>{paymentDeadline(payment).toLocaleString("es-EC", { timeZone: "America/Guayaquil", dateStyle: "long", timeStyle: "short" })}</b>{" "}
           para pagar. Si no, la oferta vuelve a competir y tu solicitud recibe ofertas de nuevo.
         </p>
@@ -75,7 +75,7 @@ export default async function PaymentPage({ params }: PageProps<"/pagos/[id]">) 
         <>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <div className="card p-5">
-              <div className="font-semibold">🏦 Transferencia bancaria</div>
+              <div className="font-semibold">Transferencia bancaria</div>
               <dl className="mt-3 space-y-1.5 text-sm">
                 {[
                   ["Banco", PAYMENT_INFO.bank],
@@ -92,7 +92,7 @@ export default async function PaymentPage({ params }: PageProps<"/pagos/[id]">) 
               </dl>
             </div>
             <div className="card p-5">
-              <div className="font-semibold">📱 DeUna</div>
+              <div className="font-semibold">DeUna</div>
               <p className="mt-3 text-sm text-zinc-600">
                 Paga desde la app DeUna al número <b>{PAYMENT_INFO.deunaPhone}</b> ({PAYMENT_INFO.holder}).
               </p>
@@ -102,9 +102,6 @@ export default async function PaymentPage({ params }: PageProps<"/pagos/[id]">) 
               </div>
             </div>
           </div>
-          {PAYMENT_INFO.isDemo && (
-            <p className="mt-2 text-xs text-zinc-400">Datos bancarios de demostración. Configura PAY_* en el archivo .env.</p>
-          )}
 
           <div className="card mt-6 p-6">
             <h2 className="font-semibold">Sube tu comprobante</h2>

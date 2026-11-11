@@ -26,7 +26,7 @@ export function FormMessage({ state }: { state: { error?: string; ok?: string; w
     return <p role="alert" className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{state.error}</p>;
   }
   if (state?.warn) {
-    return <p role="alert" className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">⚠️ {state.warn}</p>;
+    return <p role="alert" className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{state.warn}</p>;
   }
   if (state?.ok) {
     return <p role="status" className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{state.ok}</p>;

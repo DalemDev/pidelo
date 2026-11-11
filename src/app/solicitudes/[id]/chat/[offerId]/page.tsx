@@ -57,11 +57,11 @@ export default async function ChatPage({ params }: PageProps<"/solicitudes/[id]/
         <div className="space-y-2">
           {unlocked ? (
             <div className="mx-auto max-w-md rounded-xl bg-emerald-50 px-3 py-2 text-center text-xs text-emerald-800">
-              🛡️ Pago protegido. Ya pueden compartir datos para coordinar el trabajo. Nunca compartas contraseñas.
+              Pago protegido. Ya pueden compartir datos para coordinar el trabajo. Nunca compartas contraseñas.
             </div>
           ) : (
             <div className="mx-auto max-w-md rounded-xl bg-zinc-100 px-3 py-2 text-center text-xs text-zinc-600">
-              🔒 Teléfonos, correos y redes se desbloquean cuando se acepta la oferta y el pago queda protegido. Pagar por
+              Teléfonos, correos y redes se desbloquean cuando se acepta la oferta y el pago queda protegido. Pagar por
               fuera = sin garantía ni reseñas. Los intentos cuentan como advertencia.
             </div>
           )}

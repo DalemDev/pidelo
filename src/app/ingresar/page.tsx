@@ -16,9 +16,6 @@ export default async function LoginPage({ searchParams }: PageProps<"/ingresar">
       <div className="card mt-6 p-6">
         <LoginForm next={next} />
       </div>
-      <p className="mt-4 text-center text-xs text-zinc-500">
-        Cuenta demo: <code>ana@demo.ec</code> / <code>demo1234</code>
-      </p>
     </div>
   );
 }

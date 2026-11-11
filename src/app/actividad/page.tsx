@@ -54,7 +54,7 @@ export default async function ActivityPage() {
           }`}
         >
           <b>
-            ⚠️ Tienes {user.strikes} de {STRIKES_SUSPEND} advertencias
+            Tienes {user.strikes} de {STRIKES_SUSPEND} advertencias
           </b>{" "}
           por intentar compartir contactos o acordar pagos fuera de Pídelo.{" "}
           {user.suspendedUntil && user.suspendedUntil > new Date()

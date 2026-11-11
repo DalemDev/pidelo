@@ -96,7 +96,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
 
       {justPublished && (
         <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-          <div className="font-display text-lg font-semibold text-emerald-900">🎉 ¡Tu solicitud está publicada!</div>
+          <div className="font-display text-lg font-semibold text-emerald-900">Tu solicitud está publicada</div>
           <p className="mt-1 text-sm text-emerald-800">
             {request.notifiedCount > 0
               ? `Ya avisamos a ${request.notifiedCount === 1 ? "1 persona que sabe" : `${request.notifiedCount} personas que saben`} de ${cat.label.toLowerCase()}. Te notificaremos en cuanto llegue la primera oferta.`
@@ -111,7 +111,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
       )}
       {justPublished && sp.oculto === "1" && (
         <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          ⚠️ Ocultamos datos de contacto de tu publicación. Para tu seguridad, el contacto directo se habilita cuando
+          Ocultamos datos de contacto de tu publicación. Para tu seguridad, el contacto directo se habilita cuando
           aceptas una oferta y el pago queda protegido.
         </div>
       )}
@@ -122,8 +122,8 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
           <article className="card p-6">
             <div className="flex flex-wrap items-center gap-1.5">
               <StatusBadge status={request.status} />
-              {featured && <span className="chip bg-amber-400 text-amber-950">⭐ Destacada</span>}
-              {request.urgent && <span className="chip bg-sun-100 text-amber-800">⚡ Urgente</span>}
+              {featured && <span className="chip bg-amber-400 text-amber-950">Destacada</span>}
+              {request.urgent && <span className="chip bg-sun-100 text-amber-800">Urgente</span>}
               <span className="chip bg-zinc-100 text-zinc-700">{cat.icon} {cat.label}</span>
               <span className="chip bg-zinc-100 text-zinc-700">{kindLabel(request.kind)}</span>
             </div>
@@ -189,7 +189,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
                       <p className="mt-3 whitespace-pre-line text-sm text-zinc-700">{o.message}</p>
                       <div className="mt-4 flex flex-wrap items-center gap-2">
                         <Link href={`/solicitudes/${request.id}/chat/${o.id}`} className="btn-secondary">
-                          💬 Chatear{o._count.messages ? ` (${o._count.messages})` : ""}
+                          Chatear{o._count.messages ? ` (${o._count.messages})` : ""}
                         </Link>
                         {request.status === "OPEN" && o.status === "PENDING" && (
                           <form action={selectOffer.bind(null, o.id)}>
@@ -227,7 +227,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
           {/* Pago protegido */}
           {accepted && request.status === "AWAITING_PAYMENT" && (isAuthor || isProvider) && (
             <div className="card border-amber-200 p-5">
-              <div className="font-semibold">💳 Falta el pago</div>
+              <div className="font-semibold">Falta el pago</div>
               {isAuthor ? (
                 <>
                   <p className="mt-1 text-sm text-zinc-600">
@@ -245,7 +245,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
                 </>
               ) : (
                 <p className="mt-1 text-sm text-zinc-600">
-                  🎯 ¡Te eligieron! Esperamos a que el cliente pague. <b>No empieces</b> hasta que el pago quede protegido: te avisaremos.
+                  Te eligieron. Esperamos a que el cliente pague. <b>No empieces</b> hasta que el pago quede protegido: te avisaremos.
                 </p>
               )}
             </div>
@@ -253,7 +253,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
 
           {accepted && request.escrow !== "PENDING" && request.escrow !== "NONE" && (
             <div className="card p-5">
-              <div className="flex items-center gap-2 font-semibold">🛡️ Pago protegido</div>
+              <div className="flex items-center gap-2 font-semibold">Pago protegido</div>
               <div className="mt-3 space-y-1.5 text-sm">
                 <div className="flex justify-between"><span className="text-zinc-500">Monto pagado</span><b>{money(accepted.price)}</b></div>
                 <div className="flex justify-between"><span className="text-zinc-500">Comisión Pídelo ({Math.round(accepted.feeRate * 100)}%)</span><span>−{money(accepted.price * accepted.feeRate)}</span></div>
@@ -279,9 +279,9 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
                     nadie reporta un problema.
                   </span>
                 )}
-                {request.escrow === "DISPUTED" && "⚖️ Pago congelado por una disputa. El equipo de Pídelo está revisando el caso."}
+                {request.escrow === "DISPUTED" && "Pago congelado por una disputa. El equipo de Pídelo está revisando el caso."}
                 {request.escrow === "RELEASED" && "✓ Pago liberado al proveedor."}
-                {request.escrow === "REFUNDED" && "↩️ El pago se reembolsó al cliente."}
+                {request.escrow === "REFUNDED" && "El pago se reembolsó al cliente."}
               </div>
               {dispute?.status === "RESOLVED" && (
                 <p className="mt-2 text-xs text-zinc-500">
@@ -297,18 +297,18 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
 
               {(isProvider || isAuthor) && (
                 <Link href={`/solicitudes/${request.id}/chat/${accepted.id}`} className="btn-secondary mt-3 w-full">
-                  💬 Abrir chat del trabajo
+                  Abrir chat del trabajo
                 </Link>
               )}
               {isProvider && request.status === "IN_PROGRESS" && request.escrow === "HELD" && (
                 <form action={markDelivered.bind(null, request.id)} className="mt-2">
-                  <SubmitButton className="w-full">📦 Marcar como entregado</SubmitButton>
+                  <SubmitButton className="w-full">Marcar como entregado</SubmitButton>
                 </form>
               )}
               {isAuthor && request.escrow === "HELD" && (request.status === "IN_PROGRESS" || request.status === "DELIVERED") && (
                 <form action={confirmCompletion.bind(null, request.id)} className="mt-2">
                   <SubmitButton className="w-full">
-                    {request.status === "DELIVERED" ? "✅ Confirmar y liberar pago" : "✅ Ya recibí el trabajo, liberar pago"}
+                    {request.status === "DELIVERED" ? "Confirmar y liberar pago" : "Ya recibí el trabajo, liberar pago"}
                   </SubmitButton>
                 </form>
               )}
@@ -324,7 +324,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
           {/* Acciones según quién mira */}
           {user?.role === "ADMIN" && (
             <div className="card border-brand-200 bg-brand-50/50 p-5 text-sm">
-              <div className="font-semibold">⚙️ Vista de administración</div>
+              <div className="font-semibold">Vista de administración</div>
               <p className="mt-1 text-zinc-600">
                 Estado: <b>{request.status}</b> · pago: <b>{request.escrow}</b> · {request.offers.length} oferta(s).
               </p>
@@ -341,7 +341,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
 
           {member && !isAuthor && request.status === "OPEN" && !myOffer && earlyLocked && (
             <div className="card border-brand-200 bg-brand-50/50 p-5">
-              <div className="font-semibold">⏱ Acceso anticipado Pro</div>
+              <div className="font-semibold">Acceso anticipado Pro</div>
               <p className="mt-1 text-sm text-zinc-600">
                 Los miembros Pro y Élite pueden ofertar ahora. Tú podrás hacerlo en {earlyMinutesLeft} min.
               </p>
@@ -373,7 +373,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
                 {myOffer.status === "REJECTED" && "El cliente eligió otra oferta"}
               </div>
               <div className="mt-4 flex gap-2">
-                <Link href={`/solicitudes/${request.id}/chat/${myOffer.id}`} className="btn-secondary flex-1">💬 Chatear</Link>
+                <Link href={`/solicitudes/${request.id}/chat/${myOffer.id}`} className="btn-secondary flex-1">Chatear</Link>
                 {myOffer.status === "PENDING" && (
                   <form action={withdrawOffer.bind(null, myOffer.id)}>
                     <SubmitButton variant="secondary" pendingText="…">Retirar</SubmitButton>
@@ -386,21 +386,21 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
           {isAuthor && request.status === "OPEN" && (
             <div className="card p-5">
               <div className="flex items-center justify-between">
-                <div className="font-semibold">🚀 Recibe más ofertas</div>
-                <Link href="/creditos" className="text-xs font-semibold text-amber-900">🪙 {user!.credits}</Link>
+                <div className="font-semibold">Recibe más ofertas</div>
+                <Link href="/creditos" className="text-xs font-semibold text-amber-900">{user!.credits}</Link>
               </div>
               <div className="mt-3 space-y-2">
                 <BoostButton
                   requestId={request.id}
                   kind="FEATURE"
-                  label={featured ? `⭐ Extender destacado +${FEATURE_DAYS} días` : `⭐ Destacar ${FEATURE_DAYS} días`}
+                  label={featured ? `Extender destacado +${FEATURE_DAYS} días` : `Destacar ${FEATURE_DAYS} días`}
                   cost={BOOST_COSTS.FEATURE}
                 />
-                {!request.urgent && <BoostButton requestId={request.id} kind="URGENT" label="⚡ Marcar como urgente" cost={BOOST_COSTS.URGENT} />}
+                {!request.urgent && <BoostButton requestId={request.id} kind="URGENT" label="Marcar como urgente" cost={BOOST_COSTS.URGENT} />}
                 <BoostButton
                   requestId={request.id}
                   kind="BUMP"
-                  label="🔄 Volver a subir"
+                  label="Volver a subir"
                   cost={BOOST_COSTS.BUMP}
                   disabledReason={bumpHoursLeft > 0 ? `Disponible en ${bumpHoursLeft} h` : undefined}
                 />
@@ -411,7 +411,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
                 </p>
               )}
               <p className={`mt-3 rounded-lg px-3 py-2 text-xs ${expiringSoon ? "bg-amber-50 text-amber-900" : "bg-zinc-50 text-zinc-600"}`}>
-                ⌛ Vence el {expiresAt(request).toLocaleDateString("es-EC", { weekday: "short", day: "numeric", month: "short" })} si no eliges una oferta.
+                Vence el {expiresAt(request).toLocaleDateString("es-EC", { weekday: "short", day: "numeric", month: "short" })} si no eliges una oferta.
                 Volver a subirla reinicia el plazo de {REQUEST_EXPIRY_DAYS} días.
               </p>
             </div>
@@ -419,7 +419,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
 
           {isAuthor && request.status === "EXPIRED" && (
             <div className="card p-5">
-              <div className="font-semibold">⌛ Esta solicitud venció</div>
+              <div className="font-semibold">Esta solicitud venció</div>
               <p className="mt-1 text-sm text-zinc-600">
                 Pasaron {REQUEST_EXPIRY_DAYS} días sin elegir una oferta. A quienes ofertaron les devolvimos sus créditos.
               </p>
@@ -441,7 +441,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
             </div>
           )}
           {request.status === "COMPLETED" && (isAuthor || isProvider) && alreadyReviewed && (
-            <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-800">⭐ ¡Gracias! Ya calificaste este trabajo.</div>
+            <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-800">Ya calificaste este trabajo. Gracias.</div>
           )}
         </aside>
       </div>
@@ -453,15 +453,15 @@ function ProtectionBox() {
   return (
     <div className="mt-3 grid gap-2 rounded-2xl border border-brand-100 bg-brand-50/60 p-4 text-sm sm:grid-cols-3">
       <div>
-        <b className="text-brand-900">🛡️ Tu dinero protegido</b>
+        <b className="text-brand-900">Tu dinero protegido</b>
         <p className="text-zinc-600">Queda retenido hasta que confirmes que recibiste el trabajo.</p>
       </div>
       <div>
-        <b className="text-brand-900">⭐ Reseñas verificadas</b>
+        <b className="text-brand-900">Reseñas verificadas</b>
         <p className="text-zinc-600">Solo los trabajos pagados en Pídelo cuentan para la reputación.</p>
       </div>
       <div>
-        <b className="text-brand-900">🚫 Por fuera no hay garantía</b>
+        <b className="text-brand-900">Por fuera no hay garantía</b>
         <p className="text-zinc-600">Si pagas por transferencia directa o en efectivo, no podemos ayudarte.</p>
       </div>
     </div>

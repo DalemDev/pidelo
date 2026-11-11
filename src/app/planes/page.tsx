@@ -6,6 +6,7 @@ import { quotePlanChange } from "@/domain/plans";
 import { AutoRenewToggle, CancelChangeButton, SubscribeButton } from "./plan-buttons";
 import { balance } from "@/server/services/ledger";
 import { ACCOUNTS, fmtCents } from "@/domain/money";
+import { simulatedPaymentsEnabled } from "@/server/config/env";
 
 export const metadata: Metadata = { title: "Planes" };
 
@@ -19,6 +20,7 @@ export default async function PlansPage({ searchParams }: PageProps<"/planes">) 
   const current = (user?.plan ?? "FREE") as PlanId;
   const walletCents = user ? await balance(ACCOUNTS.available(user.id)) : 0;
   const nextPlan = user?.nextPlan ? planOf(user.nextPlan) : null;
+  const cardEnabled = simulatedPaymentsEnabled();
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
@@ -34,11 +36,11 @@ export default async function PlansPage({ searchParams }: PageProps<"/planes">) 
         <div role="status" className="mx-auto mt-8 max-w-2xl rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
           {changed.kind === "downgrade" ? (
             <>
-              📅 Listo: pasarás a <b>{changed.plan.label}</b> en tu próxima renovación. Hasta entonces conservas tu plan actual.
+              Listo: pasarás a <b>{changed.plan.label}</b> en tu próxima renovación. Hasta entonces conservas tu plan actual.
             </>
           ) : (
             <>
-              ✨ ¡{changed.kind === "upgrade" ? "Ahora eres" : "Bienvenido al plan"} <b>{changed.plan.label}</b>!{" "}
+              {changed.kind === "upgrade" ? "Ahora tienes el plan" : "Te suscribiste al plan"} <b>{changed.plan.label}</b>.{" "}
               {paid > 0 && <>Pagaste {fmtCents(paid)}{changed.kind === "upgrade" && " por los días que quedan del ciclo"} y </>}
               sumaste {gained} créditos.
             </>
@@ -86,7 +88,7 @@ export default async function PlansPage({ searchParams }: PageProps<"/planes">) 
                 <span className="text-zinc-500">/mes</span>
               </div>
               <div className="mt-1 text-sm text-zinc-500">
-                Comisión {Math.round(plan.fee * 100)} % · 🪙 {plan.monthlyCredits} créditos/mes
+                Comisión {Math.round(plan.fee * 100)} % · {plan.monthlyCredits} créditos/mes
               </div>
               <ul className="mt-5 flex-1 space-y-2 text-sm">
                 {plan.perks.map((perk) => (
@@ -119,7 +121,8 @@ export default async function PlansPage({ searchParams }: PageProps<"/planes">) 
                           label={`Cambiar a ${plan.label} al renovar`}
                           note={`Conservas tu plan actual hasta el ${fmtDate(q.renewsAt)}. Sin cobros hoy.`}
                           primary={false}
-                          canUseBalance={false}
+                          cardEnabled={cardEnabled}
+                          free
                         />
                       );
                     }
@@ -131,6 +134,7 @@ export default async function PlansPage({ searchParams }: PageProps<"/planes">) 
                           note={`Pagas solo la diferencia por los ${q.daysLeft} días que quedan y recibes ${q.credits} créditos. Tu renovación sigue el ${fmtDate(q.renewsAt)}.`}
                           primary={highlight}
                           canUseBalance={walletCents >= q.chargeCents}
+                          cardEnabled={cardEnabled}
                         />
                       );
                     }
@@ -140,6 +144,7 @@ export default async function PlansPage({ searchParams }: PageProps<"/planes">) 
                         label={`Suscribirme a ${plan.label}`}
                         primary={highlight}
                         canUseBalance={q.kind === "NEW" && walletCents >= q.chargeCents}
+                        cardEnabled={cardEnabled}
                       />
                     );
                   })()
@@ -156,7 +161,11 @@ export default async function PlansPage({ searchParams }: PageProps<"/planes">) 
           En un trabajo de $100, con el plan gratis recibes $90. Con Pro recibes $93 y con Élite $95. Si haces más de 2 trabajos de ese
           tamaño al mes, Pro ya te sale gratis, y eso sin contar los créditos incluidos ni la ventaja de ofertar primero.
         </p>
-        <p className="mt-3 text-xs text-zinc-400">MVP: suscripción simulada, no se cobra dinero real.</p>
+        <p className="mt-3 text-xs text-zinc-400">
+          {cardEnabled
+            ? "Entorno de pruebas: el pago con tarjeta no cobra dinero real."
+            : "Los planes se pagan con el saldo de tu billetera y se renuevan con él cada 30 días."}
+        </p>
       </div>
     </div>
   );

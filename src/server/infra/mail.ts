@@ -11,7 +11,7 @@ type Mail = { to: string; subject: string; text: string; html: string };
 export async function sendMail(mail: Mail) {
   if (!env.RESEND_API_KEY) {
     if (process.env.NODE_ENV === "production") throw new Error("RESEND_API_KEY no está configurada");
-    console.log(`\n📧 [correo de desarrollo] Para: ${mail.to}\n   Asunto: ${mail.subject}\n${mail.text}\n`);
+    console.log(`\n[correo de desarrollo] Para: ${mail.to}\n   Asunto: ${mail.subject}\n${mail.text}\n`);
     return;
   }
   const res = await fetch("https://api.resend.com/emails", {

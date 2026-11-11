@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef } from "react";
 import { sendMessage } from "@/app/actions/requests";
 
-// MVP: refresco periódico. En producción conviene WebSockets/SSE (ver README).
+// Refresco periódico del hilo. Para más volumen, reemplazar por SSE o WebSockets (ver docs/ARQUITECTURA.md).
 export function AutoRefresh({ intervalMs = 4000 }: { intervalMs?: number }) {
   const router = useRouter();
   useEffect(() => {
@@ -24,7 +24,7 @@ export function ChatComposer({ offerId }: { offerId: string }) {
     <div className="space-y-2">
       {(state?.error || state?.warn) && (
         <p role="alert" className={`rounded-xl px-3 py-2 text-sm ${state.error ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-900"}`}>
-          ⚠️ {state.error ?? state.warn}
+          {state.error ?? state.warn}
         </p>
       )}
     <form ref={formRef} action={action} className="card flex items-end gap-2 p-2">

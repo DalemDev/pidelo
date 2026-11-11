@@ -132,3 +132,17 @@ export async function expireUnpaidSelections() {
     );
   }
 }
+
+/**
+ * Retención de datos (política de privacidad): borra registros de seguridad que ya no se necesitan.
+ * Los asientos contables y pagos no se tocan: la normativa tributaria obliga a conservarlos.
+ */
+export async function purgeExpiredRecords() {
+  const now = Date.now();
+  await Promise.all([
+    db.rateLimitEvent.deleteMany({ where: { createdAt: { lt: new Date(now - DAY) } } }),
+    db.session.deleteMany({ where: { OR: [{ expiresAt: { lt: new Date(now) } }, { revokedAt: { lt: new Date(now - 30 * DAY) } }] } }),
+    db.passwordReset.deleteMany({ where: { expiresAt: { lt: new Date(now - DAY) } } }),
+    db.auditLog.deleteMany({ where: { createdAt: { lt: new Date(now - 365 * DAY) } } }),
+  ]);
+}

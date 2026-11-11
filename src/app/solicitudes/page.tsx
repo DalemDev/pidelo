@@ -69,7 +69,7 @@ export default async function FeedPage({ searchParams }: PageProps<"/solicitudes
               href={skills.length ? tabHref("parati") : "/perfil/editar"}
               className={`rounded-lg px-4 py-1.5 ${paraTi ? "bg-white shadow-sm" : "text-zinc-600"}`}
             >
-              🎯 Para ti
+              Para ti
             </Link>
           </div>
         )}
@@ -92,7 +92,7 @@ export default async function FeedPage({ searchParams }: PageProps<"/solicitudes
         </select>
         <label className="flex items-center gap-2 px-2 text-sm font-semibold">
           <input type="checkbox" name="urgente" value="1" defaultChecked={urgente} className="h-4 w-4 accent-amber-500" />
-          ⚡ Urgentes
+          Urgentes
         </label>
         <button className="btn-primary">Filtrar</button>
       </form>
@@ -103,7 +103,7 @@ export default async function FeedPage({ searchParams }: PageProps<"/solicitudes
           className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 px-4 py-3 text-sm hover:border-brand-200"
         >
           <span>
-            ⏱ Los miembros <b>Pro</b> ven y ofertan en solicitudes nuevas <b>{EARLY_ACCESS_MINUTES} minutos antes</b>. Quien oferta
+            Los miembros <b>Pro</b> ven y ofertan en solicitudes nuevas <b>{EARLY_ACCESS_MINUTES} minutos antes</b>. Quien oferta
             primero gana más trabajos.
           </span>
           <span className="shrink-0 font-semibold text-brand-700">Ver planes →</span>
