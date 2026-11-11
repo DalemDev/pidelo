@@ -2,6 +2,7 @@ import "server-only";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { ValidationError } from "@/domain/errors";
 import { env } from "@/server/config/env";
 
 // Comprobantes de pago. Nunca se sirven desde /public: solo vía /api/comprobantes/[id] con control de acceso.
@@ -17,7 +18,8 @@ const TYPES: Record<string, string> = {
 export const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 const NAME_RE = /^[a-z0-9]+-\d+\.(jpg|png|webp|pdf)$/;
 
-export class UploadError extends Error {}
+/** Archivo inválido: el mensaje se puede mostrar al usuario. */
+export class UploadError extends ValidationError {}
 
 // Firma de los primeros bytes: el tipo que declara el navegador se puede falsificar.
 function sniff(buf: Buffer): string | null {

@@ -3,16 +3,15 @@ import { getCurrentUser } from "@/server/auth/session";
 import { db } from "@/server/db/client";
 import { logout } from "@/app/actions/auth";
 import { Avatar, PlanBadge } from "./ui";
-import { refreshAccount } from "@/server/services/credits";
-import { releaseDueEscrows } from "@/server/services/escrow";
-import { expireStaleRequests, expireUnpaidSelections } from "@/server/jobs/lifecycle";
+import { refreshAccount } from "@/server/services/billing";
+import { runScheduledJobsOnRequest } from "@/server/jobs/scheduler";
 
 export async function Navbar() {
   const session = await getCurrentUser();
-  // Renueva planes y entrega créditos mensuales si corresponde (sin cron).
+  // Renueva planes y entrega créditos mensuales si corresponde (una consulta; casi siempre no hace nada).
   if (session) await refreshAccount(session.id);
-  // Libera pagos de trabajos entregados hace más de 72 h (sin cron; ver README para usar Vercel Cron).
-  await Promise.all([releaseDueEscrows(), expireStaleRequests(), expireUnpaidSelections()]);
+  // En producción los trabajos programados los dispara el cron; esto solo actúa en desarrollo.
+  await runScheduledJobsOnRequest();
   const [user, unread] = session
     ? await Promise.all([
         db.user.findUnique({ where: { id: session.id }, select: { id: true, name: true, email: true, credits: true, plan: true, role: true } }),

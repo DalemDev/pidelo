@@ -28,7 +28,8 @@ export default async function ChatPage({ params }: PageProps<"/solicitudes/[id]/
           author: { select: { id: true, name: true } },
         },
       },
-      messages: { orderBy: { createdAt: "asc" }, include: { sender: { select: { id: true, name: true } } } },
+      // Últimos 200 mensajes: el chat se refresca seguido y no debe recargar historiales enormes.
+      messages: { orderBy: { createdAt: "desc" }, take: 200, include: { sender: { select: { id: true, name: true } } } },
     },
   });
   // Solo quien pidió y quien ofertó pueden ver la conversación.
@@ -70,7 +71,7 @@ export default async function ChatPage({ params }: PageProps<"/solicitudes/[id]/
               <div className="whitespace-pre-line">{offer.message}</div>
             </div>
           </div>
-          {offer.messages.map((m) => {
+          {[...offer.messages].reverse().map((m) => {
             const mine = m.senderId === user.id;
             return (
               <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>

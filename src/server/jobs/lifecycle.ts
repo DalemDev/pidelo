@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/server/db/client";
 import { grantCredits } from "@/server/services/credits";
-import { notify } from "@/server/services/matching";
+import { notify } from "@/server/services/notifications";
 import { EXPIRY_WARNING_DAYS, PAYMENT_DEADLINE_HOURS, REQUEST_EXPIRY_DAYS } from "@/domain/policies";
 
 const DAY = 86400_000;
@@ -35,7 +35,7 @@ export async function expireStaleRequests() {
     if (count) {
       await notify(
         r.authorId,
-        `⌛ Tu solicitud vence en ${EXPIRY_WARNING_DAYS} días`,
+        `Tu solicitud vence en ${EXPIRY_WARNING_DAYS} días`,
         `Elige una oferta o vuelve a subirla para mantenerla abierta · ${r.title}`,
         `/solicitudes/${r.id}`,
       );
@@ -67,14 +67,14 @@ export async function expireStaleRequests() {
     for (const o of refunded) {
       await notify(
         o.providerId,
-        "↩️ La solicitud venció sin elegir oferta",
+        "La solicitud venció sin elegir oferta",
         `Te devolvimos ${o.creditsSpent} crédito${o.creditsSpent === 1 ? "" : "s"} · ${r.title}`,
         "/creditos",
       );
     }
     await notify(
       r.authorId,
-      "⌛ Tu solicitud venció",
+      "Tu solicitud venció",
       refunded.length
         ? `Pasaron ${REQUEST_EXPIRY_DAYS} días sin elegir oferta. Puedes publicarla de nuevo · ${r.title}`
         : `Pasaron ${REQUEST_EXPIRY_DAYS} días sin ofertas. Prueba publicarla de nuevo con más detalles · ${r.title}`,
@@ -120,13 +120,13 @@ export async function expireUnpaidSelections() {
 
     await notify(
       p.payerId,
-      "⌛ Venció el plazo para pagar",
+      "Venció el plazo para pagar",
       `Pasaron ${PAYMENT_DEADLINE_HOURS} h sin pago. Tu solicitud volvió a recibir ofertas · ${p.request.title}`,
       `/solicitudes/${p.requestId}`,
     );
     await notify(
       reopened.providerId,
-      "↩️ El cliente no completó el pago",
+      "El cliente no completó el pago",
       `Tu oferta sigue activa por si vuelve a elegirte · ${p.request.title}`,
       `/solicitudes/${p.requestId}`,
     );

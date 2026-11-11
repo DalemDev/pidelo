@@ -11,78 +11,86 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  city         String   @default("Todo Ecuador")
-  bio          String   @default("")
+  id                String    @id @default(cuid())
+  name              String
+  email             String    @unique
+  passwordHash      String
+  city              String    @default("Todo Ecuador")
+  bio               String    @default("")
   // Slugs de categorías separados por coma.
-  skills       String   @default("")
+  skills            String    @default("")
   // Anti-fuga: intentos de compartir contacto o pagar por fuera antes del pago protegido.
-  strikes        Int       @default(0)
-  suspendedUntil DateTime?
+  strikes           Int       @default(0)
+  suspendedUntil    DateTime?
   // Monetización: billetera de créditos y plan de suscripción (FREE | PRO | ELITE).
-  credits          Int       @default(0)
-  plan             String    @default("FREE")
-  planRenewsAt     DateTime?
-  planAutoRenew    Boolean   @default(true)
+  credits           Int       @default(0)
+  plan              String    @default("FREE")
+  planRenewsAt      DateTime?
+  planAutoRenew     Boolean   @default(true)
   // Bajada de plan programada: se aplica en la próxima renovación.
-  nextPlan         String?
-  creditsGrantedAt DateTime?
+  nextPlan          String?
+  creditsGrantedAt  DateTime?
   // Plantilla de oferta (beneficio Pro/Élite).
-  offerTemplate    String    @default("")
+  offerTemplate     String    @default("")
   // USER | ADMIN
-  role             String    @default("USER")
+  role              String    @default("USER")
   // Cuenta bancaria para retiros (debe estar a nombre del mismo titular).
+  // Número de cuenta y cédula/RUC se guardan cifrados (AES-256-GCM, ver src/server/infra/crypto.ts).
   bankName          String?
   bankAccountType   String?
   bankAccountNumber String?
   bankHolderName    String?
   bankHolderId      String?
-  // Sesiones emitidas antes de esta fecha dejan de valer (p. ej. al restablecer la contraseña).
-  sessionsValidAfter DateTime?
-  createdAt    DateTime @default(now())
+  // Último cambio de cuenta bancaria: los retiros esperan 48 h después (protección ante robo de sesión).
+  bankUpdatedAt     DateTime?
+  // Aceptación de términos y política de privacidad (LOPDP): versión y fecha.
+  termsVersion      String?
+  termsAcceptedAt   DateTime?
+  // Baja de la cuenta: los datos personales se anonimizan; los registros contables se conservan.
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
 
-  passwordResets   PasswordReset[]
+  passwordResets PasswordReset[]
+  sessions       Session[]
+  auditEntries   AuditLog[]
 
-  payments         Payment[]
-  payouts          Payout[]
-  disputesOpened   Dispute[]
+  payments       Payment[]
+  payouts        Payout[]
+  disputesOpened Dispute[]
 
   violations         Violation[]
   creditTransactions CreditTransaction[]
 
-  requests         Request[]      @relation("RequestAuthor")
-  offers           Offer[]
-  messages         Message[]
-  reviewsWritten   Review[]       @relation("ReviewAuthor")
-  reviewsReceived  Review[]       @relation("ReviewTarget")
-  notifications    Notification[]
+  requests        Request[]      @relation("RequestAuthor")
+  offers          Offer[]
+  messages        Message[]
+  reviewsWritten  Review[]       @relation("ReviewAuthor")
+  reviewsReceived Review[]       @relation("ReviewTarget")
+  notifications   Notification[]
 }
 
 model Request {
-  id          String    @id @default(cuid())
-  title       String
-  description String
-  category    String
+  id            String    @id @default(cuid())
+  title         String
+  description   String
+  category      String
   // RESOLVER | ACOMPANAMIENTO | COMPRA | OTRO
-  kind        String    @default("RESOLVER")
-  budgetMin   Float?
-  budgetMax   Float?
-  deadline    DateTime?
-  urgent      Boolean   @default(false)
+  kind          String    @default("RESOLVER")
+  budgetMin     Float?
+  budgetMax     Float?
+  deadline      DateTime?
+  urgent        Boolean   @default(false)
   // REMOTO | PRESENCIAL | CUALQUIERA
-  modality    String    @default("CUALQUIERA")
-  city        String    @default("Todo Ecuador")
+  modality      String    @default("CUALQUIERA")
+  city          String    @default("Todo Ecuador")
   // OPEN | AWAITING_PAYMENT | IN_PROGRESS | DELIVERED | COMPLETED | CANCELLED | EXPIRED
-  status      String    @default("OPEN")
+  status        String    @default("OPEN")
   // Pago protegido: NONE | PENDING | HELD | DISPUTED | RELEASED | REFUNDED
-  escrow      String    @default("NONE")
+  escrow        String    @default("NONE")
   // Para la liberación automática a las 72 h.
-  deliveredAt DateTime?
-  notifiedCount Int     @default(0)
-  views       Int       @default(0)
+  deliveredAt   DateTime?
+  notifiedCount Int       @default(0)
+  views         Int       @default(0)
   // Boosts pagados con créditos por quien pide.
   featuredUntil DateTime?
   bumpedAt      DateTime  @default(now())
@@ -90,8 +98,8 @@ model Request {
   expiryWarned  Boolean   @default(false)
   // Ventana de acceso anticipado para planes Pro/Élite (null = abierta a todos).
   premiumUntil  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   authorId        String
   author          User    @relation("RequestAuthor", fields: [authorId], references: [id], onDelete: Cascade)
@@ -105,6 +113,7 @@ model Request {
 
   @@index([status, createdAt])
   @@index([category])
+  @@index([authorId, createdAt])
 }
 
 model Offer {
@@ -121,14 +130,15 @@ model Offer {
   createdAt    DateTime @default(now())
 
   requestId  String
-  request    Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  request    Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
   providerId String
-  provider   User     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  provider   User    @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   acceptedFor Request?  @relation("AcceptedOffer")
   messages    Message[]
 
   @@unique([requestId, providerId])
+  @@index([providerId, status])
 }
 
 // Chat privado entre quien pide y quien ofertó (un hilo por oferta).
@@ -177,6 +187,7 @@ model Notification {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, read])
+  @@index([userId, createdAt])
 }
 
 // Registro de intentos de sacar la conversación o el pago de la plataforma (para moderación).
@@ -215,20 +226,22 @@ model CreditTransaction {
 
 // Cobro al cliente. Fase 1: transferencia o DeUna con comprobante, confirmado por un admin.
 model Payment {
-  id          String   @id @default(cuid())
+  id           String    @id @default(cuid())
   // Código que el cliente pone en la descripción de la transferencia (ej. PID-7K2Q9).
-  code        String   @unique
-  amountCents Int
+  code         String    @unique
+  amountCents  Int
   // TRANSFER | DEUNA
-  method      String   @default("TRANSFER")
+  method       String    @default("TRANSFER")
   // PENDING (esperando pago) | SUBMITTED (comprobante enviado) | CONFIRMED | REJECTED | CANCELLED
-  status      String   @default("PENDING")
-  reference   String   @default("")
-  receiptPath String?
-  adminNote   String   @default("")
-  createdAt   DateTime @default(now())
-  submittedAt DateTime?
-  confirmedAt DateTime?
+  status       String    @default("PENDING")
+  reference    String    @default("")
+  receiptPath  String?
+  adminNote    String    @default("")
+  createdAt    DateTime  @default(now())
+  submittedAt  DateTime?
+  confirmedAt  DateTime?
+  // Admin que confirmó o rechazó el comprobante.
+  reviewedById String?
 
   requestId String
   request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
@@ -237,6 +250,7 @@ model Payment {
   payer     User    @relation(fields: [payerId], references: [id], onDelete: Cascade)
 
   @@index([status])
+  @@index([requestId])
 }
 
 // Libro contable de doble entrada: cada transacción (txId) suma cero.
@@ -261,16 +275,17 @@ model LedgerEntry {
 }
 
 model Payout {
-  id          String   @id @default(cuid())
-  amountCents Int
+  id            String    @id @default(cuid())
+  amountCents   Int
   // REQUESTED | PAID | REJECTED
-  status      String   @default("REQUESTED")
+  status        String    @default("REQUESTED")
   // Copia de los datos bancarios al momento de solicitar (por si luego cambian).
-  bankSnapshot String
-  reference   String   @default("")
-  adminNote   String   @default("")
-  createdAt   DateTime @default(now())
-  processedAt DateTime?
+  bankSnapshot  String
+  reference     String    @default("")
+  adminNote     String    @default("")
+  createdAt     DateTime  @default(now())
+  processedAt   DateTime?
+  processedById String?
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -279,16 +294,17 @@ model Payout {
 }
 
 model Dispute {
-  id          String    @id @default(cuid())
-  reason      String
+  id           String    @id @default(cuid())
+  reason       String
   // OPEN | RESOLVED
-  status      String    @default("OPEN")
+  status       String    @default("OPEN")
   // REFUND | RELEASE | SPLIT
-  resolution  String?
-  refundCents Int       @default(0)
-  adminNote   String    @default("")
-  createdAt   DateTime  @default(now())
-  resolvedAt  DateTime?
+  resolution   String?
+  refundCents  Int       @default(0)
+  adminNote    String    @default("")
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?
 
   requestId  String
   request    Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
@@ -298,12 +314,12 @@ model Dispute {
   @@index([status])
 }
 
-// Intentos de autenticación para limitar fuerza bruta (login) y abuso del correo de recuperación.
-model AuthAttempt {
+// Eventos para limitar el uso: fuerza bruta en login, abuso del correo de recuperación, spam y costo de IA.
+model RateLimitEvent {
   id        String   @id @default(cuid())
-  // LOGIN | RESET
+  // LOGIN | RESET | REGISTER | AI_DRAFT | MESSAGE | OFFER | REQUEST
   kind      String
-  // Correo normalizado o "ip:<dirección>".
+  // Correo normalizado, id de usuario o "ip:<dirección>".
   key       String
   createdAt DateTime @default(now())
 
@@ -322,4 +338,38 @@ model PasswordReset {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Sesión iniciada. La cookie lleva un JWT con el id de la sesión: se puede revocar una (cerrar sesión)
+// o todas (cambio de contraseña, baja de la cuenta).
+model Session {
+  id        String    @id @default(cuid())
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Registro de auditoría de acciones sensibles (administración, dinero, cuenta). Solo se agrega, nunca se edita.
+model AuditLog {
+  id        String   @id @default(cuid())
+  // p. ej. payment.confirm, payout.paid, dispute.resolve, account.delete, bank.update
+  action    String
+  entity    String
+  entityId  String
+  // Detalle en JSON sin datos sensibles (montos, estados, notas).
+  data      String   @default("{}")
+  ip        String   @default("")
+  createdAt DateTime @default(now())
+
+  actorId String?
+  actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
 }

@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/server/db/client";
 import { requireMember } from "@/server/auth/session";
-import { releaseDueEscrows, walletSummary } from "@/server/services/escrow";
+import { maskTail } from "@/server/infra/crypto";
+import { walletSummary } from "@/server/queries/wallet";
+import { getBankDetails } from "@/server/services/payouts";
 import { MIN_PAYOUT_CENTS, NEW_PROVIDER_HOLD_DAYS, NEW_PROVIDER_JOBS, fmtCents } from "@/domain/money";
 import { timeAgo } from "@/domain/format";
 import { BankForm, PayoutForm } from "./forms";
@@ -17,14 +19,9 @@ const PAYOUT_STATUS: Record<string, { label: string; tone: string }> = {
 
 export default async function WalletPage() {
   const session = await requireMember("/billetera");
-  // Asegura que los pagos vencidos (72 h) ya estén liberados antes de leer saldos.
-  await releaseDueEscrows();
   const [w, bank, payouts] = await Promise.all([
     walletSummary(session.id),
-    db.user.findUniqueOrThrow({
-      where: { id: session.id },
-      select: { bankName: true, bankAccountType: true, bankAccountNumber: true, bankHolderName: true, bankHolderId: true },
-    }),
+    getBankDetails(session.id),
     db.payout.findMany({ where: { userId: session.id }, orderBy: { createdAt: "desc" }, take: 10 }),
   ]);
 
@@ -42,7 +39,7 @@ export default async function WalletPage() {
           )}
         </div>
         <div className="card p-5">
-          <div className="text-sm text-zinc-500">🛡️ Retenido en trabajos</div>
+          <div className="text-sm text-zinc-500">Retenido en trabajos</div>
           <div className="mt-1 font-display text-3xl font-bold">{fmtCents(w.heldTotal)}</div>
           <div className="mt-1 text-xs text-zinc-500">Se libera cuando el cliente confirma</div>
         </div>
@@ -60,6 +57,13 @@ export default async function WalletPage() {
         <p className="mt-3 rounded-xl bg-sky-50 px-4 py-2 text-sm text-sky-900">
           Por seguridad, a los proveedores con menos de {NEW_PROVIDER_JOBS} trabajos completados les retenemos lo liberado durante{" "}
           {NEW_PROVIDER_HOLD_DAYS} días antes de poder retirarlo ({fmtCents(w.locked)} por ahora).
+        </p>
+      )}
+
+      {w.bankHoldUntil && (
+        <p className="mt-3 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-900">
+          Cambiaste tu cuenta bancaria hace poco. Por seguridad, los retiros se habilitan el{" "}
+          {w.bankHoldUntil.toLocaleString("es-EC", { timeZone: "America/Guayaquil", dateStyle: "long", timeStyle: "short" })}.
         </p>
       )}
 
@@ -83,10 +87,10 @@ export default async function WalletPage() {
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <section className="card p-6">
           <h2 className="font-semibold">Retirar a mi cuenta</h2>
-          {bank.bankAccountNumber ? (
+          {bank ? (
             <>
               <p className="mt-1 text-sm text-zinc-600">
-                A {bank.bankName} ···{bank.bankAccountNumber.slice(-4)} · mínimo {fmtCents(MIN_PAYOUT_CENTS)} · 1 a 2 días hábiles.
+                A {bank.bankName} {maskTail(bank.bankAccountNumber)} · mínimo {fmtCents(MIN_PAYOUT_CENTS)} · 1 a 2 días hábiles.
               </p>
               <PayoutForm withdrawable={w.withdrawable} />
             </>
@@ -101,14 +105,15 @@ export default async function WalletPage() {
 
         <section className="card p-6">
           <h2 className="font-semibold">Cuenta bancaria</h2>
-          <p className="mt-1 text-sm text-zinc-600">Debe estar a tu nombre. Verificamos que el titular coincida antes de transferir.</p>
+          <p className="mt-1 text-sm text-zinc-600">
+            Debe estar a tu nombre. Verificamos que el titular coincida antes de transferir.
+            {bank && <> Cuenta actual: {bank.bankName} {maskTail(bank.bankAccountNumber)}.</>}
+          </p>
           <BankForm
             bank={{
-              bankName: bank.bankName ?? "",
-              bankAccountType: bank.bankAccountType ?? "AHORROS",
-              bankAccountNumber: bank.bankAccountNumber ?? "",
-              bankHolderName: bank.bankHolderName ?? session.name,
-              bankHolderId: bank.bankHolderId ?? "",
+              bankName: bank?.bankName ?? "",
+              bankAccountType: bank?.bankAccountType || "AHORROS",
+              bankHolderName: bank?.bankHolderName ?? session.name,
             }}
           />
         </section>

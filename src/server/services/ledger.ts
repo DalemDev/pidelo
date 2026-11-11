@@ -1,8 +1,9 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/server/db/client";
+import type { Tx } from "@/server/db/client";
 
-export type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
+// Libro contable de doble entrada. Cuentas en src/domain/money.ts (ACCOUNTS).
 
 type Leg = { account: string; amountCents: number };
 
@@ -13,9 +14,9 @@ type Leg = { account: string; amountCents: number };
  */
 export async function post(tx: Tx, legs: Leg[], memo: string, refType = "", refId = "") {
   const clean = legs.filter((l) => l.amountCents !== 0);
+  if (clean.some((l) => !Number.isSafeInteger(l.amountCents))) throw new Error("Montos deben ser centavos enteros");
   const sum = clean.reduce((s, l) => s + l.amountCents, 0);
   if (sum !== 0) throw new Error(`Transacción descuadrada (${sum} centavos): ${memo}`);
-  if (clean.some((l) => !Number.isInteger(l.amountCents))) throw new Error("Montos deben ser centavos enteros");
 
   const txId = randomUUID();
   await tx.ledgerEntry.createMany({
@@ -25,8 +26,8 @@ export async function post(tx: Tx, legs: Leg[], memo: string, refType = "", refI
 }
 
 /**
- * Bloquea una cuenta hasta que termine la transacción. Usar antes de leer un saldo para debitarlo:
- * con READ COMMITTED, dos transacciones simultáneas podrían leer el mismo saldo y gastarlo dos veces.
+ * Bloquea una cuenta (o cualquier clave) hasta que termine la transacción. Usar antes de leer un saldo
+ * para debitarlo: con READ COMMITTED, dos transacciones simultáneas podrían leer el mismo saldo y gastarlo dos veces.
  */
 export async function lockAccount(tx: Tx, account: string) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${account}))`;

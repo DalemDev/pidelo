@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/server/db/client";
 import { getCurrentUser } from "@/server/auth/session";
-import { getReputations } from "@/server/services/matching";
+import { getReputations } from "@/server/queries/reputation";
 import { categoryOf } from "@/domain/catalog";
 import { splitSkills, timeAgo } from "@/domain/format";
 import { Avatar, PlanBadge, RequestCard, Stars } from "@/components/ui";

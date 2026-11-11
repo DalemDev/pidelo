@@ -25,3 +25,5 @@ export const AUTO_RELEASE_HOURS = 72;
 // Proveedores con menos trabajos completados esperan antes de poder retirar (protección ante contracargos/fraude).
 export const NEW_PROVIDER_JOBS = 3;
 export const NEW_PROVIDER_HOLD_DAYS = 7;
+// Tras cambiar la cuenta bancaria, los retiros esperan (si alguien robó la sesión, el dueño alcanza a reaccionar).
+export const BANK_CHANGE_HOLD_HOURS = 48;

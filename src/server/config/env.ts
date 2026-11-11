@@ -15,6 +15,17 @@ const schema = z.object({
   // Correo transaccional con Resend (recuperación de contraseña). Sin clave, en desarrollo se imprime en consola.
   RESEND_API_KEY: optional,
   MAIL_FROM: optional,
+  // Clave de 32 bytes en base64 para cifrar datos bancarios y de identidad en la base.
+  // Generar con: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+  DATA_ENCRYPTION_KEY: optional,
+  // Datos de la empresa que se muestran en el pie de página y en los documentos legales.
+  LEGAL_COMPANY_NAME: optional,
+  LEGAL_RUC: optional,
+  LEGAL_ADDRESS: optional,
+  SUPPORT_EMAIL: optional,
+  PRIVACY_EMAIL: optional,
+  // "1" ejecuta los trabajos programados al navegar también en producción (si no hay cron disponible).
+  RUN_JOBS_ON_REQUEST: optional,
   // "1" permite compras con tarjeta simuladas en producción (solo para un demo; nunca con usuarios reales).
   ALLOW_SIMULATED_PAYMENTS: optional,
 
@@ -69,6 +80,13 @@ export function assertProductionEnv(e: Env = env) {
   for (const k of ["PAY_BANK_NAME", "PAY_ACCOUNT_NUMBER", "PAY_HOLDER", "PAY_RUC"] as const) if (!e[k]) missing.push(k);
   // Sin correo no hay recuperación de contraseña.
   for (const k of ["APP_URL", "RESEND_API_KEY", "MAIL_FROM"] as const) if (!e[k]) missing.push(k);
+  if (!e.DATA_ENCRYPTION_KEY || Buffer.from(e.DATA_ENCRYPTION_KEY, "base64").length !== 32) {
+    missing.push("DATA_ENCRYPTION_KEY (32 bytes en base64)");
+  }
+  // Identificación del proveedor del servicio (Ley de Comercio Electrónico y Defensa del Consumidor).
+  for (const k of ["LEGAL_COMPANY_NAME", "LEGAL_RUC", "LEGAL_ADDRESS", "SUPPORT_EMAIL", "PRIVACY_EMAIL"] as const) {
+    if (!e[k]) missing.push(k);
+  }
   if (missing.length) {
     throw new Error(`Faltan variables de entorno para producción:\n${missing.map((m) => `  - ${m}`).join("\n")}\nVer README → "Publicar en producción".`);
   }

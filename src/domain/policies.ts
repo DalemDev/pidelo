@@ -42,3 +42,14 @@ export function paymentDeadline(p: { createdAt: Date; submittedAt: Date | null }
 export function expiresAt(r: { bumpedAt: Date }) {
   return new Date(r.bumpedAt.getTime() + REQUEST_EXPIRY_DAYS * 86400_000);
 }
+
+// Suspensión por intentos repetidos de sacar contactos o pagos de la plataforma.
+export const SUSPENSION_DAYS = 7;
+
+export function isSuspended(user: { suspendedUntil: Date | null }, now = new Date()) {
+  return !!user.suspendedUntil && user.suspendedUntil > now;
+}
+
+export function suspendedMessage(until: Date) {
+  return `Tu cuenta está suspendida hasta el ${until.toLocaleDateString("es-EC", { day: "numeric", month: "long", timeZone: "America/Guayaquil" })} por intentar sacar pagos o contactos de la plataforma.`;
+}

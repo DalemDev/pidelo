@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { db } from "@/server/db/client";
-import { requireUser } from "@/server/auth/session";
+import { requireAdmin } from "@/server/auth/session";
 import { balance, balancesByPrefix } from "@/server/services/ledger";
+import { readBankSnapshot } from "@/server/services/payouts";
 import { ACCOUNTS, fmtCents } from "@/domain/money";
 import { timeAgo } from "@/domain/format";
 import {
@@ -18,8 +18,7 @@ import { ActionForm, ResolveFields } from "./action-form";
 export const metadata: Metadata = { title: "Administración" };
 
 export default async function AdminPage() {
-  const user = await requireUser("/admin");
-  if (user.role !== "ADMIN") redirect("/");
+  await requireAdmin();
 
   const [payments, disputes, payouts, world, revenue, escrows, availables, pendings, recentTx, violations] = await Promise.all([
     db.payment.findMany({
@@ -173,7 +172,7 @@ export default async function AdminPage() {
       {/* Retiros */}
       <Section id="retiros" title="🏦 Retiros por transferir" empty={!payouts.length}>
         {payouts.map((p) => {
-          const b = JSON.parse(p.bankSnapshot) as Record<string, string>;
+          const b = readBankSnapshot(p.bankSnapshot);
           const nameMismatch = b.bankHolderName?.trim().toLowerCase() !== p.user.name.trim().toLowerCase();
           return (
             <div key={p.id} className="card p-5">

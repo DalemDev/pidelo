@@ -1,56 +1,72 @@
 import "server-only";
 import { headers } from "next/headers";
+import { RateLimitError } from "@/domain/errors";
 import { db } from "@/server/db/client";
 
-// Límite de intentos guardado en la base (sin Redis): suficiente para login y recuperación de contraseña,
-// que son de bajo volumen. Cada intento es una fila; las viejas se borran al registrar nuevas.
+// Límites de uso guardados en PostgreSQL (tabla RateLimitEvent). Suficiente para el volumen esperado;
+// si el tráfico crece, esta interfaz (consume/clear) se puede respaldar con Redis sin tocar a quien la usa.
 
-export type Limit = { kind: "LOGIN" | "RESET"; key: string; max: number; windowMinutes: number };
+export type RateKind = "LOGIN" | "RESET" | "REGISTER" | "AI_DRAFT" | "MESSAGE" | "OFFER" | "REQUEST";
+export type Limit = { kind: RateKind; key: string; max: number; windowMinutes: number };
 
-export const LOGIN_LIMITS = (email: string, ip: string): Limit[] => [
-  // Por cuenta: frena a quien prueba contraseñas contra un correo.
-  { kind: "LOGIN", key: email, max: 5, windowMinutes: 15 },
-  // Por IP: frena a quien prueba muchas cuentas desde el mismo lugar.
-  { kind: "LOGIN", key: `ip:${ip}`, max: 20, windowMinutes: 15 },
-];
+export const LIMITS = {
+  // Por cuenta frena a quien prueba contraseñas contra un correo; por IP, a quien prueba muchas cuentas.
+  login: (email: string, ip: string): Limit[] => [
+    { kind: "LOGIN", key: email, max: 5, windowMinutes: 15 },
+    { kind: "LOGIN", key: `ip:${ip}`, max: 20, windowMinutes: 15 },
+  ],
+  reset: (email: string, ip: string): Limit[] => [
+    { kind: "RESET", key: email, max: 3, windowMinutes: 60 },
+    { kind: "RESET", key: `ip:${ip}`, max: 10, windowMinutes: 60 },
+  ],
+  register: (ip: string): Limit[] => [{ kind: "REGISTER", key: `ip:${ip}`, max: 5, windowMinutes: 60 }],
+  // El asistente llama a una API de pago: se limita para acotar el costo por usuario.
+  aiDraft: (userId: string): Limit[] => [{ kind: "AI_DRAFT", key: userId, max: 20, windowMinutes: 60 }],
+  message: (userId: string): Limit[] => [{ kind: "MESSAGE", key: userId, max: 30, windowMinutes: 1 }],
+  offer: (userId: string): Limit[] => [{ kind: "OFFER", key: userId, max: 30, windowMinutes: 60 }],
+  request: (userId: string): Limit[] => [{ kind: "REQUEST", key: userId, max: 10, windowMinutes: 60 }],
+};
 
-export const RESET_LIMITS = (email: string, ip: string): Limit[] => [
-  { kind: "RESET", key: email, max: 3, windowMinutes: 60 },
-  { kind: "RESET", key: `ip:${ip}`, max: 10, windowMinutes: 60 },
-];
-
-/** IP del cliente según el proxy (Vercel envía x-forwarded-for). */
+/**
+ * IP del cliente. En Vercel, x-real-ip la pone la plataforma. Detrás de otro proxy, configúralo para que
+ * fije x-real-ip; si no, se usa el último valor de x-forwarded-for (el que agregó el proxy más cercano),
+ * nunca el primero, que lo controla el cliente.
+ */
 export async function clientIp() {
   const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "desconocida";
+  return h.get("x-real-ip")?.trim() || h.get("x-forwarded-for")?.split(",").at(-1)?.trim() || "desconocida";
 }
 
-/** Minutos que faltan para poder reintentar; 0 si todavía quedan intentos en todos los límites. */
-export async function retryAfterMinutes(limits: Limit[]) {
+/**
+ * Registra el uso y lanza RateLimitError si se superó algún límite. Se registra antes de contar: así,
+ * muchas peticiones simultáneas no pueden pasar todas antes de que la primera quede registrada.
+ */
+export async function consume(limits: Limit[], message: (waitMinutes: number) => string) {
+  await db.rateLimitEvent.createMany({ data: limits.map(({ kind, key }) => ({ kind, key })) });
+
   let wait = 0;
   for (const { kind, key, max, windowMinutes } of limits) {
     const windowMs = windowMinutes * 60_000;
-    const attempts = await db.authAttempt.findMany({
+    const recent = await db.rateLimitEvent.findMany({
       where: { kind, key, createdAt: { gte: new Date(Date.now() - windowMs) } },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
       select: { createdAt: true },
-      take: max,
+      take: max + 1,
     });
-    if (attempts.length < max) continue;
-    // Se libera un intento cuando el más antiguo de la ventana sale de ella.
-    const freesAt = attempts[0]!.createdAt.getTime() + windowMs;
-    wait = Math.max(wait, Math.ceil((freesAt - Date.now()) / 60_000));
+    if (recent.length <= max) continue;
+    // Se vuelve a poder cuando el más antiguo de los últimos `max` sale de la ventana.
+    const freesAt = recent[max - 1]!.createdAt.getTime() + windowMs;
+    wait = Math.max(wait, Math.max(1, Math.ceil((freesAt - Date.now()) / 60_000)));
   }
-  return wait;
+
+  // Limpieza ocasional: ningún límite mira más de un día atrás.
+  if (Math.random() < 0.02) {
+    await db.rateLimitEvent.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 86400_000) } } });
+  }
+  if (wait > 0) throw new RateLimitError(message(wait));
 }
 
-export async function recordAttempt(limits: Limit[]) {
-  await db.authAttempt.createMany({ data: limits.map(({ kind, key }) => ({ kind, key })) });
-  // Limpieza: nada de lo que se cuenta tiene más de un día.
-  await db.authAttempt.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 86400_000) } } });
-}
-
-/** Tras un login correcto se perdonan los intentos fallidos de esa cuenta (no los de la IP). */
-export async function clearAttempts(kind: Limit["kind"], key: string) {
-  await db.authAttempt.deleteMany({ where: { kind, key } });
+/** Perdona los eventos de una clave (p. ej. tras un login correcto o una contraseña restablecida). */
+export async function clear(kind: RateKind, key: string) {
+  await db.rateLimitEvent.deleteMany({ where: { kind, key } });
 }

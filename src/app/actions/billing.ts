@@ -2,164 +2,61 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { db } from "@/server/db/client";
-import { ADMIN_BLOCKED, isAdmin, requireUser } from "@/server/auth/session";
-import { BOOST_COSTS, BUMP_COOLDOWN_HOURS, FEATURE_DAYS, isFeatured } from "@/domain/policies";
-import { CREDIT_PACKS, PLANS, type PlanId } from "@/domain/plans";
-import { InsufficientBalance, InsufficientCredits, applyPlanChange, chargeBalance, grantCredits, spendCredits } from "@/server/services/credits";
-import { quotePlanChange, type PlanQuote } from "@/domain/plans";
-import { simulatedPaymentsEnabled } from "@/server/config/env";
-import { fmtCents, toCents } from "@/domain/money";
-import { notify } from "@/server/services/matching";
-import type { FormState } from "./auth";
+import { requireUser } from "@/server/auth/session";
+import { runAction, runVoidAction, type FormState } from "@/server/http/action";
+import * as billing from "@/server/services/billing";
+import * as requests from "@/server/services/requests";
 
-// "BALANCE" cobra del saldo de la billetera. "CARD" está simulado hasta integrar la pasarela
-// (PayPhone/Kushki): solo funciona en desarrollo; en producción, la compra con tarjeta debe ejecutarse
-// desde el webhook de la pasarela cuando el pago se confirma, nunca directo desde el cliente.
+// Adaptadores de compras, planes e impulsos de solicitudes.
 
-export type PayMethod = "CARD" | "BALANCE";
-
-const CARD_UNAVAILABLE = "El pago con tarjeta aún no está disponible. Puedes pagar con el saldo de tu billetera.";
-
-/** Valida el método recibido del formulario; devuelve un error si no se puede usar. */
-function checkMethod(method: string): string | null {
-  if (method !== "CARD" && method !== "BALANCE") return "Método de pago no válido";
-  if (method === "CARD" && !simulatedPaymentsEnabled()) return CARD_UNAVAILABLE;
-  return null;
-}
-
-class PaymentUnavailable extends Error {}
+export type PayMethod = billing.PayMethod;
+export type BoostKind = requests.BoostKind;
 
 export async function buyCredits(packId: string, method: PayMethod = "CARD"): Promise<FormState> {
-  const user = await requireUser("/creditos");
-  if (isAdmin(user)) return { error: ADMIN_BLOCKED };
-  const pack = CREDIT_PACKS.find((p) => p.id === packId);
-  if (!pack) return { error: "Paquete no válido" };
-  const methodError = checkMethod(method);
-  if (methodError) return { error: methodError };
-  const label = `Compra de ${pack.credits} créditos ($${pack.price.toFixed(2)})`;
-  try {
-    await db.$transaction(async (tx) => {
-      if (method === "BALANCE") await chargeBalance(tx, user.id, toCents(pack.price), label);
-      await grantCredits(tx, user.id, pack.credits, "PURCHASE", method === "BALANCE" ? `${label} con saldo` : label);
-    });
-  } catch (e) {
-    if (e instanceof InsufficientBalance) return { error: e.message };
-    throw e;
-  }
-  revalidatePath("/", "layout");
-  return { ok: `¡Listo! Sumaste ${pack.credits} créditos.` };
+  const actor = await requireUser("/creditos");
+  return runAction("buyCredits", async () => {
+    const pack = await billing.buyCredits(actor, packId, method);
+    revalidatePath("/", "layout");
+    return { ok: `Listo: sumaste ${pack.credits} créditos.` };
+  });
 }
 
 export async function subscribePlan(planId: string, method: PayMethod = "CARD"): Promise<FormState> {
-  const user = await requireUser("/planes");
-  if (isAdmin(user)) return { error: ADMIN_BLOCKED };
-  if (planId !== "PRO" && planId !== "ELITE") return { error: "Plan no válido" };
-  const target = planId as PlanId;
-  const plan = PLANS[target];
-  if (method !== "CARD" && method !== "BALANCE") return { error: "Método de pago no válido" };
-
-  let quote: PlanQuote;
-  try {
-    // Todo en una transacción: el plan vigente se lee, se cotiza, se cobra y se aplica junto.
-    // Si el cobro falla, el plan no cambia; si el cambio falla, el cobro se revierte.
-    quote = await db.$transaction(async (tx) => {
-      const current = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { plan: true, planRenewsAt: true } });
-      const q = quotePlanChange(current, target);
-      if (q.kind === "SAME") return q;
-      if ((q.kind === "NEW" || q.kind === "UPGRADE") && q.chargeCents > 0) {
-        // Una bajada no cobra nada, así que solo se valida el método cuando hay cargo.
-        const methodError = checkMethod(method);
-        if (methodError) throw new PaymentUnavailable(methodError);
-        if (method === "BALANCE") {
-          const memo = q.kind === "UPGRADE" ? `Mejora a ${plan.label} (prorrateo de ${q.daysLeft} días)` : `Plan ${plan.label} (1 mes)`;
-          await chargeBalance(tx, user.id, q.chargeCents, memo);
-        }
-      }
-      await applyPlanChange(tx, user.id, target, q);
-      return q;
-    });
-  } catch (e) {
-    if (e instanceof InsufficientBalance || e instanceof PaymentUnavailable) return { error: e.message };
-    throw e;
-  }
-
-  if (quote.kind === "SAME") return { error: "Ya tienes este plan" };
-
-  // La tarjeta del plan cambia tras aplicar el cambio (y con ella el botón), así que el mensaje de
-  // éxito se muestra a nivel de página vía la URL, y queda una notificación como comprobante.
-  const detail =
-    quote.kind === "NEW"
-      ? `Suscripción a ${plan.label}: ${fmtCents(quote.chargeCents)} · +${quote.credits} créditos. Se renueva el ${fmtDate(quote.renewsAt)}.`
-      : quote.kind === "UPGRADE"
-        ? `Mejora a ${plan.label}: ${fmtCents(quote.chargeCents)} por ${quote.daysLeft} días restantes · +${quote.credits} créditos. Tu renovación sigue el ${fmtDate(quote.renewsAt)}.`
-        : `Pasarás a ${plan.label} el ${fmtDate(quote.renewsAt)}. Hasta entonces conservas tu plan actual.`;
-  await notify(user.id, quote.kind === "DOWNGRADE" ? "📅 Cambio de plan programado" : `✨ Plan ${plan.label} activo`, detail, "/planes");
-  revalidatePath("/", "layout");
-  const params = new URLSearchParams({ cambio: quote.kind.toLowerCase(), plan: target });
-  if (quote.kind !== "DOWNGRADE") {
-    params.set("monto", String(quote.chargeCents));
-    params.set("creditos", String(quote.credits));
-  }
-  redirect(`/planes?${params}`);
+  const actor = await requireUser("/planes");
+  let target = "";
+  const state = await runAction("subscribePlan", async () => {
+    const quote = await billing.subscribePlan(actor, planId, method);
+    revalidatePath("/", "layout");
+    // La tarjeta del plan cambia tras aplicar el cambio, así que el resultado se muestra a nivel de página.
+    const params = new URLSearchParams({ cambio: quote.kind.toLowerCase(), plan: planId });
+    if (quote.kind === "NEW" || quote.kind === "UPGRADE") {
+      params.set("monto", String(quote.chargeCents));
+      params.set("creditos", String(quote.credits));
+    }
+    target = `/planes?${params}`;
+  });
+  if (target) redirect(target);
+  return state;
 }
 
 export async function setAutoRenew(autoRenew: boolean) {
-  const user = await requireUser("/planes");
-  // Cancelar la renovación también anula una bajada programada: el plan simplemente termina.
-  await db.user.update({ where: { id: user.id }, data: { planAutoRenew: autoRenew, ...(autoRenew ? {} : { nextPlan: null }) } });
+  const actor = await requireUser("/planes");
+  await runVoidAction("setAutoRenew", () => billing.setAutoRenew(actor, autoRenew === true));
   revalidatePath("/planes");
 }
 
 export async function cancelPlanChange() {
-  const user = await requireUser("/planes");
-  await db.user.update({ where: { id: user.id }, data: { nextPlan: null } });
+  const actor = await requireUser("/planes");
+  await runVoidAction("cancelPlanChange", () => billing.cancelPlanChange(actor));
   revalidatePath("/planes");
 }
 
-const fmtDate = (d: Date) => d.toLocaleDateString("es-EC", { day: "numeric", month: "long" });
-
-// ---------------------------------------------------------------------------
-// Boosts de solicitudes (quien pide)
-
-export type BoostKind = "FEATURE" | "URGENT" | "BUMP";
-
 export async function boostRequest(requestId: string, kind: BoostKind): Promise<FormState> {
-  const user = await requireUser();
-  const request = await db.request.findUnique({ where: { id: requestId } });
-  if (!request || request.authorId !== user.id) return { error: "No puedes modificar esta solicitud" };
-  if (request.status !== "OPEN") return { error: "Solo puedes impulsar solicitudes abiertas" };
-
-  const now = new Date();
-  let data: { featuredUntil?: Date; urgent?: boolean; bumpedAt?: Date; expiryWarned?: boolean };
-  let label: string;
-  if (kind === "FEATURE") {
-    const base = isFeatured(request) ? request.featuredUntil! : now;
-    data = { featuredUntil: new Date(base.getTime() + FEATURE_DAYS * 86400_000) };
-    label = `Destacar ${FEATURE_DAYS} días`;
-  } else if (kind === "URGENT") {
-    if (request.urgent) return { error: "Ya está marcada como urgente" };
-    data = { urgent: true, bumpedAt: now, expiryWarned: false };
-    label = "Marcar como urgente";
-  } else {
-    const hours = (now.getTime() - request.bumpedAt.getTime()) / 3600_000;
-    if (hours < BUMP_COOLDOWN_HOURS) {
-      return { error: `Podrás volver a subirla en ${Math.ceil(BUMP_COOLDOWN_HOURS - hours)} h` };
-    }
-    data = { bumpedAt: now, expiryWarned: false };
-    label = "Volver a subir";
-  }
-
-  try {
-    await db.$transaction(async (tx) => {
-      await spendCredits(tx, user.id, BOOST_COSTS[kind], kind, `${label} · ${request.title}`);
-      await tx.request.update({ where: { id: requestId }, data });
-    });
-  } catch (e) {
-    if (e instanceof InsufficientCredits) return { error: e.message };
-    throw e;
-  }
-  revalidatePath(`/solicitudes/${requestId}`);
-  revalidatePath("/solicitudes");
-  return { ok: "¡Listo! Tu solicitud ganó visibilidad." };
+  const actor = await requireUser();
+  return runAction("boostRequest", async () => {
+    await requests.boostRequest(actor, requestId, kind);
+    revalidatePath(`/solicitudes/${requestId}`);
+    revalidatePath("/solicitudes");
+    return { ok: "Listo: tu solicitud ganó visibilidad." };
+  });
 }
