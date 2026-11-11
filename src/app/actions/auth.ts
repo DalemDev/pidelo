@@ -3,10 +3,10 @@
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { createSession, destroySession, requireUser } from "@/lib/auth";
-import { CATEGORY_SLUGS, CITIES } from "@/lib/constants";
-import { LOGIN_LIMITS, clearAttempts, clientIp, recordAttempt, retryAfterMinutes } from "@/lib/rate-limit";
+import { db } from "@/server/db/client";
+import { createSession, destroySession, requireUser } from "@/server/auth/session";
+import { CATEGORY_SLUGS, CITIES } from "@/domain/catalog";
+import { LOGIN_LIMITS, clearAttempts, clientIp, recordAttempt, retryAfterMinutes } from "@/server/infra/rate-limit";
 import { revalidatePath } from "next/cache";
 
 export type FormState = { error?: string; ok?: string; warn?: string } | undefined;

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
-import { PLANS, planOf, type PlanId } from "@/lib/constants";
-import { quotePlanChange } from "@/lib/plans";
+import { getCurrentUser } from "@/server/auth/session";
+import { PLANS, planOf, type PlanId } from "@/domain/plans";
+import { quotePlanChange } from "@/domain/plans";
 import { AutoRenewToggle, CancelChangeButton, SubscribeButton } from "./plan-buttons";
-import { balance } from "@/lib/ledger";
-import { ACCOUNTS, fmtCents } from "@/lib/money";
+import { balance } from "@/server/services/ledger";
+import { ACCOUNTS, fmtCents } from "@/domain/money";
 
 export const metadata: Metadata = { title: "Planes" };
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireMember } from "@/lib/auth";
+import { requireMember } from "@/server/auth/session";
 import { Composer } from "./composer";
 
 export const metadata: Metadata = { title: "Publicar necesidad" };

@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getCurrentUser } from "@/server/auth/session";
+import { db } from "@/server/db/client";
 import { logout } from "@/app/actions/auth";
 import { Avatar, PlanBadge } from "./ui";
-import { refreshAccount } from "@/lib/credits";
-import { releaseDueEscrows } from "@/lib/escrow";
-import { expireStaleRequests, expireUnpaidSelections } from "@/lib/lifecycle";
+import { refreshAccount } from "@/server/services/credits";
+import { releaseDueEscrows } from "@/server/services/escrow";
+import { expireStaleRequests, expireUnpaidSelections } from "@/server/jobs/lifecycle";
 
 export async function Navbar() {
   const session = await getCurrentUser();

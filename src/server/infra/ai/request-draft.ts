@@ -2,7 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { CATEGORIES, CATEGORY_SLUGS, CITIES, KIND_VALUES, MODALITY_VALUES } from "./constants";
+import { CATEGORIES, CATEGORY_SLUGS, CITIES, KIND_VALUES, MODALITY_VALUES } from "@/domain/catalog";
 
 // Borrador estructurado que el asistente arma a partir de lo que la persona escribió.
 export const DraftSchema = z.object({

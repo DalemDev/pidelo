@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
-import { balance, balancesByPrefix } from "@/lib/ledger";
-import { ACCOUNTS, fmtCents } from "@/lib/money";
-import { timeAgo } from "@/lib/format";
+import { db } from "@/server/db/client";
+import { requireUser } from "@/server/auth/session";
+import { balance, balancesByPrefix } from "@/server/services/ledger";
+import { ACCOUNTS, fmtCents } from "@/domain/money";
+import { timeAgo } from "@/domain/format";
 import {
   adminConfirmPayment,
   adminMarkPayoutPaid,

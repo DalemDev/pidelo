@@ -3,14 +3,14 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { ADMIN_BLOCKED, isAdmin, requireUser } from "@/lib/auth";
-import { planOf } from "@/lib/constants";
-import { notify } from "@/lib/matching";
-import { EscrowError, notifyAdmins, paymentCode, releaseEscrow, walletSummary } from "@/lib/escrow";
-import { lockAccount, post } from "@/lib/ledger";
-import { ACCOUNTS, MIN_PAYOUT_CENTS, fmtCents, toCents } from "@/lib/money";
-import { UploadError, saveReceipt } from "@/lib/storage";
+import { db } from "@/server/db/client";
+import { ADMIN_BLOCKED, isAdmin, requireUser } from "@/server/auth/session";
+import { planOf } from "@/domain/plans";
+import { notify } from "@/server/services/matching";
+import { EscrowError, notifyAdmins, paymentCode, releaseEscrow, walletSummary } from "@/server/services/escrow";
+import { lockAccount, post } from "@/server/services/ledger";
+import { ACCOUNTS, MIN_PAYOUT_CENTS, fmtCents, toCents } from "@/domain/money";
+import { UploadError, saveReceipt } from "@/server/infra/storage";
 import type { FormState } from "./auth";
 
 // ---------------------------------------------------------------------------

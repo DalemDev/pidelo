@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/server/auth/session";
 import { LoginForm } from "@/components/auth-forms";
 
 export const metadata: Metadata = { title: "Ingresar" };

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
-import { money } from "@/lib/format";
-import { contactUnlocked } from "@/lib/constants";
+import { db } from "@/server/db/client";
+import { requireUser } from "@/server/auth/session";
+import { money } from "@/domain/format";
+import { contactUnlocked } from "@/domain/policies";
 import { Avatar } from "@/components/ui";
 import { ChatComposer, AutoRefresh } from "./chat-client";
 

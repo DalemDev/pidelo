@@ -1,6 +1,6 @@
 import "server-only";
 import { headers } from "next/headers";
-import { db } from "./db";
+import { db } from "@/server/db/client";
 
 // Límite de intentos guardado en la base (sin Redis): suficiente para login y recuperación de contraseña,
 // que son de bajo volumen. Cada intento es una fila; las viejas se borran al registrar nuevas.

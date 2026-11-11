@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { findValidReset } from "@/lib/password-reset";
+import { findValidReset } from "@/server/services/password-reset";
 import { ResetPasswordForm } from "@/components/auth-forms";
 
 export const metadata: Metadata = { title: "Nueva contraseña" };

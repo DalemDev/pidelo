@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 import { cache } from "react";
-import { db } from "./db";
+import { db } from "@/server/db/client";
 
 const COOKIE = "pidelo_session";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 días

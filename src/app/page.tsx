@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { db } from "@/lib/db";
-import { CATEGORIES } from "@/lib/constants";
+import { db } from "@/server/db/client";
+import { CATEGORIES } from "@/domain/catalog";
 import { RequestCard } from "@/components/ui";
-import { getCurrentUser } from "@/lib/auth";
-import { earlyAccessFilter, sortFeed } from "@/lib/feed";
+import { getCurrentUser } from "@/server/auth/session";
+import { earlyAccessFilter, sortFeed } from "@/server/queries/feed";
 
 const EXAMPLES = [
   "Necesito alguien que me explique cálculo integral antes del examen del viernes, en Quito o por Zoom",

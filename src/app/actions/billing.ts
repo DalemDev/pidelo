@@ -2,14 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
-import { ADMIN_BLOCKED, isAdmin, requireUser } from "@/lib/auth";
-import { BOOST_COSTS, BUMP_COOLDOWN_HOURS, CREDIT_PACKS, FEATURE_DAYS, PLANS, isFeatured, type PlanId } from "@/lib/constants";
-import { InsufficientBalance, InsufficientCredits, applyPlanChange, chargeBalance, grantCredits, spendCredits } from "@/lib/credits";
-import { quotePlanChange, type PlanQuote } from "@/lib/plans";
-import { simulatedPaymentsEnabled } from "@/lib/env";
-import { fmtCents, toCents } from "@/lib/money";
-import { notify } from "@/lib/matching";
+import { db } from "@/server/db/client";
+import { ADMIN_BLOCKED, isAdmin, requireUser } from "@/server/auth/session";
+import { BOOST_COSTS, BUMP_COOLDOWN_HOURS, FEATURE_DAYS, isFeatured } from "@/domain/policies";
+import { CREDIT_PACKS, PLANS, type PlanId } from "@/domain/plans";
+import { InsufficientBalance, InsufficientCredits, applyPlanChange, chargeBalance, grantCredits, spendCredits } from "@/server/services/credits";
+import { quotePlanChange, type PlanQuote } from "@/domain/plans";
+import { simulatedPaymentsEnabled } from "@/server/config/env";
+import { fmtCents, toCents } from "@/domain/money";
+import { notify } from "@/server/services/matching";
 import type { FormState } from "./auth";
 
 // "BALANCE" cobra del saldo de la billetera. "CARD" está simulado hasta integrar la pasarela

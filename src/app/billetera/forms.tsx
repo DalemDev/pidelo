@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { requestPayout, saveBankAccount } from "@/app/actions/payments";
 import { FormMessage, SubmitButton } from "@/components/form-bits";
-import { MIN_PAYOUT_CENTS, fmtCents } from "@/lib/money";
+import { MIN_PAYOUT_CENTS, fmtCents } from "@/domain/money";
 
 export function PayoutForm({ withdrawable }: { withdrawable: number }) {
   const [state, action] = useActionState(requestPayout, undefined);

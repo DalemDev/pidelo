@@ -2,10 +2,10 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { db } from "./db";
-import { filterContact } from "./contact-filter";
-import { notify } from "./matching";
-import { STRIKES_LOSE_PRIORITY, STRIKES_SUSPEND } from "./constants";
+import { db } from "@/server/db/client";
+import { filterContact } from "@/domain/contact-filter";
+import { notify } from "@/server/services/matching";
+import { STRIKES_LOSE_PRIORITY, STRIKES_SUSPEND } from "@/domain/policies";
 
 export type Context = "CHAT" | "OFFER" | "REQUEST";
 

@@ -3,9 +3,10 @@
 import { useActionState, useState, useTransition } from "react";
 import { aiDraft, createRequest } from "@/app/actions/requests";
 import Link from "next/link";
-import { BOOST_COSTS, CATEGORIES, CITIES, FEATURE_DAYS, KINDS, MODALITIES } from "@/lib/constants";
+import { BOOST_COSTS, FEATURE_DAYS } from "@/domain/policies";
+import { CATEGORIES, CITIES, KINDS, MODALITIES } from "@/domain/catalog";
 import { FormMessage, SubmitButton } from "@/components/form-bits";
-import type { Draft } from "@/lib/ai";
+import type { Draft } from "@/server/infra/ai/request-draft";
 
 const PROMPTS = [
   "Necesito que alguien me explique contabilidad de costos, tengo examen el lunes",

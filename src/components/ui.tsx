@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { STATUS_LABELS, categoryOf, kindLabel, modalityLabel } from "@/lib/constants";
-import { budgetLabel, initials, timeAgo } from "@/lib/format";
-import type { Reputation } from "@/lib/matching";
+import { STATUS_LABELS, categoryOf, kindLabel, modalityLabel } from "@/domain/catalog";
+import { budgetLabel, initials, timeAgo } from "@/domain/format";
+import type { Reputation } from "@/server/services/matching";
 
 const AVATAR_COLORS = [
   "bg-brand-100 text-brand-700",

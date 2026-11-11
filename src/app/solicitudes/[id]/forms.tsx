@@ -6,7 +6,7 @@ import { FormMessage, SubmitButton } from "@/components/form-bits";
 import Link from "next/link";
 import { boostRequest, type BoostKind } from "@/app/actions/billing";
 import { openDispute } from "@/app/actions/payments";
-import { money } from "@/lib/format";
+import { money } from "@/domain/format";
 
 export function OfferForm({
   requestId,

@@ -1,8 +1,8 @@
 import "server-only";
-import { db } from "./db";
-import { grantCredits } from "./credits";
-import { notify } from "./matching";
-import { EXPIRY_WARNING_DAYS, PAYMENT_DEADLINE_HOURS, REQUEST_EXPIRY_DAYS } from "./constants";
+import { db } from "@/server/db/client";
+import { grantCredits } from "@/server/services/credits";
+import { notify } from "@/server/services/matching";
+import { EXPIRY_WARNING_DAYS, PAYMENT_DEADLINE_HOURS, REQUEST_EXPIRY_DAYS } from "@/domain/policies";
 
 const DAY = 86400_000;
 

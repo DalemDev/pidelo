@@ -1,6 +1,8 @@
 import "server-only";
-import { db } from "./db";
-import { ALL_ECUADOR, EARLY_ACCESS_MINUTES, STRIKES_LOSE_PRIORITY, categoryOf, planOf } from "./constants";
+import { db } from "@/server/db/client";
+import { ALL_ECUADOR, categoryOf } from "@/domain/catalog";
+import { EARLY_ACCESS_MINUTES, planOf } from "@/domain/plans";
+import { STRIKES_LOSE_PRIORITY } from "@/domain/policies";
 
 type RequestForMatch = {
   id: string;

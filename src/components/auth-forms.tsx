@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { login, register } from "@/app/actions/auth";
 import { requestPasswordReset, resetPassword } from "@/app/actions/password";
-import { CATEGORIES, CITIES } from "@/lib/constants";
+import { CATEGORIES, CITIES } from "@/domain/catalog";
 import { FormMessage, SubmitButton } from "./form-bits";
 
 export function LoginForm({ next }: { next?: string }) {

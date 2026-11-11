@@ -3,23 +3,15 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { ADMIN_BLOCKED, getCurrentUser, isAdmin, requireUser } from "@/lib/auth";
-import { draftRequest, type Draft } from "@/lib/ai";
-import {
-  BOOST_COSTS,
-  CATEGORY_SLUGS,
-  CITIES,
-  FEATURE_DAYS,
-  KIND_VALUES,
-  MODALITY_VALUES,
-  contactUnlocked,
-  offerCost,
-  planOf,
-} from "@/lib/constants";
-import { InsufficientCredits, grantCredits, spendCredits } from "@/lib/credits";
-import { notify, notifyMatchingProviders } from "@/lib/matching";
-import { money } from "@/lib/format";
+import { db } from "@/server/db/client";
+import { ADMIN_BLOCKED, getCurrentUser, isAdmin, requireUser } from "@/server/auth/session";
+import { draftRequest, type Draft } from "@/server/infra/ai/request-draft";
+import { BOOST_COSTS, FEATURE_DAYS, contactUnlocked, offerCost } from "@/domain/policies";
+import { CATEGORY_SLUGS, CITIES, KIND_VALUES, MODALITY_VALUES } from "@/domain/catalog";
+import { planOf } from "@/domain/plans";
+import { InsufficientCredits, grantCredits, spendCredits } from "@/server/services/credits";
+import { notify, notifyMatchingProviders } from "@/server/services/matching";
+import { money } from "@/domain/format";
 import {
   isSuspended,
   recordViolation,
@@ -27,7 +19,7 @@ import {
   suspendedMessage,
   warningText,
   type ScreenResult,
-} from "@/lib/moderation";
+} from "@/server/services/moderation";
 import type { FormState } from "./auth";
 
 // ---------------------------------------------------------------------------

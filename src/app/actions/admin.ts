@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
-import { notify } from "@/lib/matching";
-import { EscrowError, confirmPayment, resolveDispute, type Resolution } from "@/lib/escrow";
-import { post } from "@/lib/ledger";
-import { ACCOUNTS, fmtCents, toCents } from "@/lib/money";
+import { db } from "@/server/db/client";
+import { requireUser } from "@/server/auth/session";
+import { notify } from "@/server/services/matching";
+import { EscrowError, confirmPayment, resolveDispute, type Resolution } from "@/server/services/escrow";
+import { post } from "@/server/services/ledger";
+import { ACCOUNTS, fmtCents, toCents } from "@/domain/money";
 import type { FormState } from "./auth";
 
 async function requireAdmin() {

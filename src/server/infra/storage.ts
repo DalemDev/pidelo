@@ -2,7 +2,7 @@ import "server-only";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { env } from "./env";
+import { env } from "@/server/config/env";
 
 // Comprobantes de pago. Nunca se sirven desde /public: solo vía /api/comprobantes/[id] con control de acceso.
 // - STORAGE_DRIVER=local: disco en ./storage/receipts (solo desarrollo; en serverless el disco no persiste).

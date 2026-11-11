@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { db } from "./db";
+import { db } from "@/server/db/client";
 
 export type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
 

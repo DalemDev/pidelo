@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { getReputations } from "@/lib/matching";
-import { categoryOf } from "@/lib/constants";
-import { splitSkills, timeAgo } from "@/lib/format";
+import { db } from "@/server/db/client";
+import { getCurrentUser } from "@/server/auth/session";
+import { getReputations } from "@/server/services/matching";
+import { categoryOf } from "@/domain/catalog";
+import { splitSkills, timeAgo } from "@/domain/format";
 import { Avatar, PlanBadge, RequestCard, Stars } from "@/components/ui";
 
 export async function generateMetadata({ params }: PageProps<"/perfil/[id]">): Promise<Metadata> {

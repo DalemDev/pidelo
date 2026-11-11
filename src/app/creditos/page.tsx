@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { db } from "@/lib/db";
-import { requireMember } from "@/lib/auth";
-import { BOOST_COSTS, CREDIT_PACKS, FEATURE_DAYS, planOf } from "@/lib/constants";
-import { timeAgo } from "@/lib/format";
+import { db } from "@/server/db/client";
+import { requireMember } from "@/server/auth/session";
+import { BOOST_COSTS, FEATURE_DAYS } from "@/domain/policies";
+import { CREDIT_PACKS, planOf } from "@/domain/plans";
+import { timeAgo } from "@/domain/format";
 import { BuyPackButton } from "./buy-button";
-import { balance } from "@/lib/ledger";
-import { ACCOUNTS } from "@/lib/money";
+import { balance } from "@/server/services/ledger";
+import { ACCOUNTS } from "@/domain/money";
 
 export const metadata: Metadata = { title: "Mis créditos" };
 

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { db } from "@/lib/db";
-import { requireMember } from "@/lib/auth";
-import { releaseDueEscrows, walletSummary } from "@/lib/escrow";
-import { MIN_PAYOUT_CENTS, NEW_PROVIDER_HOLD_DAYS, NEW_PROVIDER_JOBS, fmtCents } from "@/lib/money";
-import { timeAgo } from "@/lib/format";
+import { db } from "@/server/db/client";
+import { requireMember } from "@/server/auth/session";
+import { releaseDueEscrows, walletSummary } from "@/server/services/escrow";
+import { MIN_PAYOUT_CENTS, NEW_PROVIDER_HOLD_DAYS, NEW_PROVIDER_JOBS, fmtCents } from "@/domain/money";
+import { timeAgo } from "@/domain/format";
 import { BankForm, PayoutForm } from "./forms";
 
 export const metadata: Metadata = { title: "Billetera" };

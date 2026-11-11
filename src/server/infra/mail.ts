@@ -1,6 +1,6 @@
 import "server-only";
 import { headers } from "next/headers";
-import { env } from "./env";
+import { env } from "@/server/config/env";
 
 type Mail = { to: string; subject: string; text: string; html: string };
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { requireUser } from "@/lib/auth";
-import { splitSkills } from "@/lib/format";
+import { requireUser } from "@/server/auth/session";
+import { splitSkills } from "@/domain/format";
 import { ProfileForm } from "./profile-form";
 
 export const metadata: Metadata = { title: "Editar perfil" };

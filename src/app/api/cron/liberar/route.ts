@@ -1,5 +1,5 @@
-import { releaseDueEscrows } from "@/lib/escrow";
-import { expireStaleRequests, expireUnpaidSelections } from "@/lib/lifecycle";
+import { releaseDueEscrows } from "@/server/services/escrow";
+import { expireStaleRequests, expireUnpaidSelections } from "@/server/jobs/lifecycle";
 
 // Tareas programadas (p. ej. Vercel Cron cada hora): liberación automática de pagos a las 72 h y
 // vencimiento de solicitudes abandonadas (14 días, con devolución de créditos). Lo "al navegar"

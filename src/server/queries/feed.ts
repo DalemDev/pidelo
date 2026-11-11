@@ -1,5 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
-import { planOf } from "./constants";
+import { planOf } from "@/domain/plans";
 
 /** Filtro de acceso anticipado: el plan gratis (y visitantes) no ven solicitudes aún reservadas para Pro/Élite. */
 export function earlyAccessFilter(viewer: { id: string; plan: string } | null): Prisma.RequestWhereInput {

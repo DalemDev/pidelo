@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { db } from "./db";
+import { db } from "@/server/db/client";
 
 export const RESET_TTL_MINUTES = 60;
 

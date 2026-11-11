@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
+import { db } from "@/server/db/client";
+import { getCurrentUser } from "@/server/auth/session";
 import type { Prisma } from "@/generated/prisma/client";
-import { ALL_ECUADOR, CATEGORIES, CITIES, EARLY_ACCESS_MINUTES, KINDS, planOf } from "@/lib/constants";
-import { earlyAccessFilter, sortFeed } from "@/lib/feed";
-import { splitSkills } from "@/lib/format";
+import { ALL_ECUADOR, CATEGORIES, CITIES, KINDS } from "@/domain/catalog";
+import { EARLY_ACCESS_MINUTES, planOf } from "@/domain/plans";
+import { earlyAccessFilter, sortFeed } from "@/server/queries/feed";
+import { splitSkills } from "@/domain/format";
 import { EmptyState, RequestCard } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Explorar solicitudes" };

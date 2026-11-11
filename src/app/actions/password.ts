@@ -4,11 +4,11 @@ import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { createSession } from "@/lib/auth";
-import { appUrl, sendMail } from "@/lib/mail";
-import { RESET_TTL_MINUTES, findValidReset, hashToken } from "@/lib/password-reset";
-import { RESET_LIMITS, clearAttempts, clientIp, recordAttempt, retryAfterMinutes } from "@/lib/rate-limit";
+import { db } from "@/server/db/client";
+import { createSession } from "@/server/auth/session";
+import { appUrl, sendMail } from "@/server/infra/mail";
+import { RESET_TTL_MINUTES, findValidReset, hashToken } from "@/server/services/password-reset";
+import { RESET_LIMITS, clearAttempts, clientIp, recordAttempt, retryAfterMinutes } from "@/server/infra/rate-limit";
 import type { FormState } from "./auth";
 
 // Mismo mensaje exista o no la cuenta: así el formulario no sirve para averiguar qué correos están registrados.

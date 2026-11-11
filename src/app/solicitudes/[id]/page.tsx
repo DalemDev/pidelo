@@ -1,31 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { getReputations } from "@/lib/matching";
-import {
-  BOOST_COSTS,
-  BUMP_COOLDOWN_HOURS,
-  EXPIRY_WARNING_DAYS,
-  REQUEST_EXPIRY_DAYS,
-  expiresAt,
-  EARLY_ACCESS_MINUTES,
-  FEATURE_DAYS,
-  STRIKES_LOSE_PRIORITY,
-  categoryOf,
-  isFeatured,
-  kindLabel,
-  modalityLabel,
-  offerCost,
-  planOf,
-} from "@/lib/constants";
-import { budgetLabel, money, shortDate, timeAgo } from "@/lib/format";
+import { db } from "@/server/db/client";
+import { getCurrentUser } from "@/server/auth/session";
+import { getReputations } from "@/server/services/matching";
+import { BOOST_COSTS, BUMP_COOLDOWN_HOURS, EXPIRY_WARNING_DAYS, REQUEST_EXPIRY_DAYS, expiresAt, FEATURE_DAYS, STRIKES_LOSE_PRIORITY, isFeatured, offerCost } from "@/domain/policies";
+import { EARLY_ACCESS_MINUTES, planOf } from "@/domain/plans";
+import { categoryOf, kindLabel, modalityLabel } from "@/domain/catalog";
+import { budgetLabel, money, shortDate, timeAgo } from "@/domain/format";
 import { cancelRequest, markDelivered, withdrawOffer } from "@/app/actions/requests";
 import { confirmCompletion, selectOffer } from "@/app/actions/payments";
-import { AUTO_RELEASE_HOURS } from "@/lib/money";
-import { releaseDueEscrows } from "@/lib/escrow";
-import { expireStaleRequests } from "@/lib/lifecycle";
+import { AUTO_RELEASE_HOURS } from "@/domain/money";
+import { releaseDueEscrows } from "@/server/services/escrow";
+import { expireStaleRequests } from "@/server/jobs/lifecycle";
 import { Avatar, PlanBadge, ReputationLine, StatusBadge } from "@/components/ui";
 import { SubmitButton } from "@/components/form-bits";
 import { BoostButton, DisputeForm, OfferForm, ReviewForm } from "./forms";

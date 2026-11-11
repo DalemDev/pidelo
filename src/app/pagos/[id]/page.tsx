@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
-import { fmtCents } from "@/lib/money";
-import { PAYMENT_INFO } from "@/lib/payment-info";
-import { paymentDeadline } from "@/lib/constants";
+import { db } from "@/server/db/client";
+import { requireUser } from "@/server/auth/session";
+import { fmtCents } from "@/domain/money";
+import { PAYMENT_INFO } from "@/server/config/payment-info";
+import { paymentDeadline } from "@/domain/policies";
 import { cancelPayment } from "@/app/actions/payments";
 import { SubmitButton } from "@/components/form-bits";
 import { ReceiptForm } from "./receipt-form";

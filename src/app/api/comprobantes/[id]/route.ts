@@ -1,6 +1,6 @@
-import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { readReceipt } from "@/lib/storage";
+import { db } from "@/server/db/client";
+import { getCurrentUser } from "@/server/auth/session";
+import { readReceipt } from "@/server/infra/storage";
 
 // Sirve el comprobante solo a quien pagó o a un admin (nunca desde /public).
 export async function GET(_: Request, ctx: RouteContext<"/api/comprobantes/[id]">) {
