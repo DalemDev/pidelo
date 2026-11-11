@@ -10,6 +10,11 @@ const schema = z.object({
   SESSION_SECRET: optional,
   CRON_SECRET: optional,
   ANTHROPIC_API_KEY: optional,
+  // URL pública de la app (p. ej. https://pidelo.ec), para los enlaces de los correos.
+  APP_URL: optional,
+  // Correo transaccional con Resend (recuperación de contraseña). Sin clave, en desarrollo se imprime en consola.
+  RESEND_API_KEY: optional,
+  MAIL_FROM: optional,
   // "1" permite compras con tarjeta simuladas en producción (solo para un demo; nunca con usuarios reales).
   ALLOW_SIMULATED_PAYMENTS: optional,
 
@@ -62,6 +67,8 @@ export function assertProductionEnv(e: Env = env) {
   if (e.STORAGE_DRIVER !== "s3") missing.push('STORAGE_DRIVER="s3" (el disco de un servidor serverless no persiste)');
   for (const k of ["S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"] as const) if (!e[k]) missing.push(k);
   for (const k of ["PAY_BANK_NAME", "PAY_ACCOUNT_NUMBER", "PAY_HOLDER", "PAY_RUC"] as const) if (!e[k]) missing.push(k);
+  // Sin correo no hay recuperación de contraseña.
+  for (const k of ["APP_URL", "RESEND_API_KEY", "MAIL_FROM"] as const) if (!e[k]) missing.push(k);
   if (missing.length) {
     throw new Error(`Faltan variables de entorno para producción:\n${missing.map((m) => `  - ${m}`).join("\n")}\nVer README → "Publicar en producción".`);
   }

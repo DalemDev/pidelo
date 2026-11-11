@@ -95,10 +95,12 @@ export async function submitReceipt(paymentId: string, _: FormState, formData: F
     throw e;
   }
 
-  await db.payment.update({
-    where: { id: paymentId },
+  // Condicionado al estado: si el plazo de pago venció mientras se subía el archivo, no se reactiva.
+  const { count } = await db.payment.updateMany({
+    where: { id: paymentId, status: { in: ["PENDING", "REJECTED"] }, request: { status: "AWAITING_PAYMENT" } },
     data: { method, reference, receiptPath, status: "SUBMITTED", submittedAt: new Date(), adminNote: "" },
   });
+  if (!count) return { error: "Este pago ya no está pendiente. Revisa el estado de tu solicitud." };
   await notifyAdmins("🧾 Comprobante por verificar", `${payment.code} · ${fmtCents(payment.amountCents)} · ${payment.request.title}`, "/admin");
   revalidatePath(`/pagos/${paymentId}`);
   return { ok: "¡Recibido! Verificaremos tu pago (normalmente en menos de 1 hora hábil)." };

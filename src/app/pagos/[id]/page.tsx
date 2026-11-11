@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { fmtCents } from "@/lib/money";
 import { PAYMENT_INFO } from "@/lib/payment-info";
+import { paymentDeadline } from "@/lib/constants";
 import { cancelPayment } from "@/app/actions/payments";
 import { SubmitButton } from "@/components/form-bits";
 import { ReceiptForm } from "./receipt-form";
@@ -41,6 +42,13 @@ export default async function PaymentPage({ params }: PageProps<"/pagos/[id]">) 
         <span className={`chip ${st.tone}`}>{st.label}</span>
       </div>
       <p className="mt-1 text-zinc-600">{st.text}</p>
+      {canPay && (
+        <p className="mt-2 text-sm text-amber-800">
+          ⌛ Tienes hasta el{" "}
+          <b>{paymentDeadline(payment).toLocaleString("es-EC", { timeZone: "America/Guayaquil", dateStyle: "long", timeStyle: "short" })}</b>{" "}
+          para pagar. Si no, la oferta vuelve a competir y tu solicitud recibe ofertas de nuevo.
+        </p>
+      )}
 
       <div className="card mt-6 grid gap-4 p-6 sm:grid-cols-3">
         <div>

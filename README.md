@@ -18,6 +18,12 @@ Es un mercado inverso para Ecuador: la persona publica su necesidad (tutoría, t
 | Reseñas mutuas y reputación (promedio, trabajos completados) | `src/app/perfil/[id]/` |
 | Notificaciones in-app, panel "Mi actividad" con lo ganado | `src/app/notificaciones/`, `src/app/actividad/` |
 
+### Cuentas
+
+- **Límite de intentos de login** (`src/lib/rate-limit.ts`): 5 fallos por correo o 20 por IP en 15 minutos bloquean el ingreso hasta que se libere la ventana. Mientras está bloqueado ni siquiera se compara la contraseña. Los intentos se guardan en la tabla `AuthAttempt`.
+- **Recuperación de contraseña** (`/recuperar`): envía un enlace de un solo uso que vence en 1 hora. En la base solo se guarda el hash del token. La respuesta es la misma exista o no la cuenta, y se limita a 3 pedidos por correo (10 por IP) por hora. Al cambiar la contraseña se cierran las sesiones abiertas en otros dispositivos (`User.sessionsValidAfter`) y se borran los intentos fallidos.
+- **Correo** (`src/lib/mail.ts`): usa Resend por su API HTTP. En desarrollo, sin `RESEND_API_KEY`, el correo se imprime en la consola del servidor.
+
 ### Anti-fuga (evitar que el pago se haga por fuera)
 
 - **Filtro de contacto** (`src/lib/contact-filter.ts`): oculta teléfonos (09…, +593, dígitos separados o en palabras), correos (incluso "arroba … punto com"), enlaces, wa.me y @usuarios. Bloquea frases como "por fuera", "sin comisión", "págame directo" o "te paso mi WhatsApp".
@@ -41,6 +47,7 @@ Es un mercado inverso para Ecuador: la persona publica su necesidad (tutoría, t
   - **Subir de plan** a mitad de ciclo: se cobra solo la diferencia por los días restantes y se entregan los créditos proporcionales; la fecha de renovación no cambia.
   - **Bajar de plan:** no hay reembolso; el cambio queda programado (`nextPlan`) y se aplica en la próxima renovación. Se puede anular con "Mantener mi plan".
   - El cobro con saldo y la activación del plan ocurren en una sola transacción.
+- **Plazo de pago** (`src/lib/lifecycle.ts`): quien elige una oferta tiene 48 h para subir el comprobante (contadas desde que eligió o desde el último comprobante rechazado). Si vence, el pago se cancela, la oferta vuelve a competir y la solicitud se reabre con su plazo de 14 días reiniciado. Los comprobantes en revisión no vencen.
 - **Vencimiento de solicitudes** (`src/lib/lifecycle.ts`): una solicitud abierta vence a los 14 días sin actividad (publicarla o volver a subirla) y **devuelve los créditos** a quienes ofertaron. El día 12 el cliente recibe un recordatorio. Si el cliente elige otra oferta, los créditos no se devuelven: pagan la oportunidad de competir.
 - **Gasto atómico:** `spendCredits` usa `updateMany … where credits >= n`, así que el saldo nunca queda negativo aunque haya requests simultáneos. Cada movimiento queda en `CreditTransaction`.
 - **Pagos simulados:** "pagar con tarjeta" no cobra nada hasta integrar la pasarela. En producción está **bloqueado** (salvo `ALLOW_SIMULATED_PAYMENTS=1`, solo para demos): créditos y planes se pagan con el saldo de la billetera, y la renovación mensual también se cobra del saldo; si no alcanza, el plan termina. Al integrar la pasarela (PayPhone/Kushki), la compra con tarjeta debe ejecutarse desde su **webhook** al confirmarse el pago, nunca directo desde el cliente.
@@ -62,7 +69,7 @@ Cliente elige oferta → AWAITING_PAYMENT → paga con código PID-XXXXXX y sube
 - **Panel `/admin`** (usuario `admin@demo.ec`): pagos por verificar con visor de comprobante, disputas, retiros (con alerta si el titular no coincide), **conciliación** (verifica que el libro cuadre y que no queden escrows con saldo en solicitudes cerradas) e intentos de fuga.
 - **Comprobantes**: en desarrollo se guardan en `storage/receipts/`; en producción, en un bucket privado S3/R2 (`STORAGE_DRIVER=s3`). Solo los ven quien pagó o un admin (`/api/comprobantes/[id]`).
 - **Datos bancarios de la empresa**: variables `PAY_BANK_NAME`, `PAY_ACCOUNT_TYPE`, `PAY_ACCOUNT_NUMBER`, `PAY_HOLDER`, `PAY_RUC` y `PAY_DEUNA` en `.env`.
-- **Liberación a las 72 h y vencimiento de solicitudes**: ocurren al navegar y, en producción, también con `GET /api/cron/liberar` y el header `Authorization: Bearer $CRON_SECRET` (por ejemplo, Vercel Cron cada hora).
+- **Liberación a las 72 h, plazo de pago y vencimiento de solicitudes**: ocurren al navegar y, en producción, también con `GET /api/cron/liberar` y el header `Authorization: Bearer $CRON_SECRET` (por ejemplo, Vercel Cron cada hora).
 
 Para publicar y para lo que falta antes de cobrar dinero real, ver [Publicar en producción](#publicar-en-producción).
 
@@ -123,6 +130,8 @@ Con AWS S3 funciona igual: deja `S3_ENDPOINT` vacío y usa la región del bucket
 | `S3_REGION` | `auto` |
 | `S3_ENDPOINT` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |
 | `PAY_BANK_NAME`, `PAY_ACCOUNT_TYPE`, `PAY_ACCOUNT_NUMBER`, `PAY_HOLDER`, `PAY_RUC`, `PAY_DEUNA` | Cuenta real de la empresa |
+| `APP_URL` | URL pública, p. ej. `https://pidelo.ec` (enlaces de los correos) |
+| `RESEND_API_KEY` / `MAIL_FROM` | Correo transaccional (recuperación de contraseña); el remitente debe ser de un dominio verificado en Resend |
 | `ANTHROPIC_API_KEY` | Opcional: activa el asistente con IA |
 
 3. **Cron:** `vercel.json` programa `/api/cron/liberar` cada hora (liberación a las 72 h y vencimiento de solicitudes). Vercel envía `CRON_SECRET` automáticamente. El plan gratuito de Vercel solo permite crons diarios; con él, cambia el horario a `0 6 * * *`. La app igual ejecuta estas tareas cuando alguien navega.
@@ -152,5 +161,6 @@ Con AWS S3 funciona igual: deja `S3_ENDPOINT` vacío y usa la región del bucket
 - [ ] Moderación con IA al publicar y reportes de usuarios.
 - [ ] Solicitudes destacadas o urgentes de pago (monetización extra).
 - [ ] Disputas: botón "tengo un problema" antes de liberar el pago.
-- [ ] Recuperación de contraseña y verificación de correo.
+- [x] Recuperación de contraseña y límite de intentos de login.
+- [ ] Verificación de correo al registrarse.
 - [ ] App móvil (PWA primero).

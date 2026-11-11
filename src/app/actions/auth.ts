@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { createSession, destroySession, requireUser } from "@/lib/auth";
 import { CATEGORY_SLUGS, CITIES } from "@/lib/constants";
+import { LOGIN_LIMITS, clearAttempts, clientIp, recordAttempt, retryAfterMinutes } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
 
 export type FormState = { error?: string; ok?: string; warn?: string } | undefined;
@@ -49,10 +50,20 @@ export async function register(_: FormState, formData: FormData): Promise<FormSt
 export async function login(_: FormState, formData: FormData): Promise<FormState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+
+  // Se revisa antes de comparar la contraseña: bloqueado significa que ni siquiera se prueba.
+  const limits = LOGIN_LIMITS(email, await clientIp());
+  const wait = await retryAfterMinutes(limits);
+  if (wait > 0) {
+    return { error: `Demasiados intentos. Espera ${wait} min o recupera tu contraseña.` };
+  }
+
   const user = await db.user.findUnique({ where: { email } });
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    await recordAttempt(limits);
     return { error: "Correo o contraseña incorrectos" };
   }
+  await clearAttempts("LOGIN", email);
   await createSession(user.id);
   redirect(safeNext(formData.get("next")));
 }

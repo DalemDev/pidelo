@@ -46,10 +46,15 @@ export const getCurrentUser = cache(async () => {
   try {
     const { payload } = await jwtVerify(token, secret());
     if (typeof payload.sub !== "string") return null;
-    return await db.user.findUnique({
+    const found = await db.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, name: true, email: true, city: true, skills: true, bio: true, strikes: true, suspendedUntil: true, credits: true, plan: true, planRenewsAt: true, planAutoRenew: true, nextPlan: true, offerTemplate: true, role: true },
+      select: { id: true, name: true, email: true, city: true, skills: true, bio: true, strikes: true, suspendedUntil: true, credits: true, plan: true, planRenewsAt: true, planAutoRenew: true, nextPlan: true, offerTemplate: true, role: true, sessionsValidAfter: true },
     });
+    if (!found) return null;
+    const { sessionsValidAfter, ...user } = found;
+    // Sesiones emitidas antes de un cambio de contraseña ya no valen (iat está en segundos).
+    if (sessionsValidAfter && (payload.iat ?? 0) < Math.floor(sessionsValidAfter.getTime() / 1000)) return null;
+    return user;
   } catch {
     return null;
   }

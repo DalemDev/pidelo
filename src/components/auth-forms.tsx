@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { login, register } from "@/app/actions/auth";
+import { requestPasswordReset, resetPassword } from "@/app/actions/password";
 import { CATEGORIES, CITIES } from "@/lib/constants";
 import { FormMessage, SubmitButton } from "./form-bits";
 
@@ -16,7 +17,12 @@ export function LoginForm({ next }: { next?: string }) {
         <input className="input" id="email" name="email" type="email" required autoComplete="email" />
       </div>
       <div>
-        <label className="label" htmlFor="password">Contraseña</label>
+        <div className="flex items-baseline justify-between">
+          <label className="label" htmlFor="password">Contraseña</label>
+          <Link href="/recuperar" className="text-xs font-semibold text-brand-600">
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
         <input className="input" id="password" name="password" type="password" required autoComplete="current-password" />
       </div>
       <FormMessage state={state} />
@@ -65,6 +71,43 @@ export function RegisterForm({ next }: { next?: string }) {
           Ingresa
         </Link>
       </p>
+    </form>
+  );
+}
+
+export function ForgotPasswordForm() {
+  const [state, action] = useActionState(requestPasswordReset, undefined);
+  return (
+    <form action={action} className="space-y-4">
+      <div>
+        <label className="label" htmlFor="email">Correo de tu cuenta</label>
+        <input className="input" id="email" name="email" type="email" required autoComplete="email" />
+      </div>
+      <FormMessage state={state} />
+      <SubmitButton className="w-full">Enviarme el enlace</SubmitButton>
+      <p className="text-center text-sm text-zinc-600">
+        <Link href="/ingresar" className="font-semibold text-brand-600">
+          Volver a ingresar
+        </Link>
+      </p>
+    </form>
+  );
+}
+
+export function ResetPasswordForm({ token }: { token: string }) {
+  const [state, action] = useActionState(resetPassword.bind(null, token), undefined);
+  return (
+    <form action={action} className="space-y-4">
+      <div>
+        <label className="label" htmlFor="password">Nueva contraseña</label>
+        <input className="input" id="password" name="password" type="password" minLength={8} required autoComplete="new-password" />
+      </div>
+      <div>
+        <label className="label" htmlFor="confirm">Repítela</label>
+        <input className="input" id="confirm" name="confirm" type="password" minLength={8} required autoComplete="new-password" />
+      </div>
+      <FormMessage state={state} />
+      <SubmitButton className="w-full">Guardar y entrar</SubmitButton>
     </form>
   );
 }

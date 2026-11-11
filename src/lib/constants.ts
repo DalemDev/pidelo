@@ -183,6 +183,15 @@ export function isFeatured(r: { featuredUntil: Date | null }) {
 export const REQUEST_EXPIRY_DAYS = 14;
 export const EXPIRY_WARNING_DAYS = 2;
 
+// Plazo para pagar una oferta elegida. Si vence sin comprobante, la oferta vuelve a competir y la
+// solicitud se reabre: así ni el cliente ni el proveedor quedan trabados esperando un pago que no llega.
+export const PAYMENT_DEADLINE_HOURS = 48;
+
+/** Fecha límite de un pago pendiente: cuenta desde que se eligió la oferta o desde el último comprobante enviado. */
+export function paymentDeadline(p: { createdAt: Date; submittedAt: Date | null }) {
+  return new Date((p.submittedAt ?? p.createdAt).getTime() + PAYMENT_DEADLINE_HOURS * 3600_000);
+}
+
 export function expiresAt(r: { bumpedAt: Date }) {
   return new Date(r.bumpedAt.getTime() + REQUEST_EXPIRY_DAYS * 86400_000);
 }

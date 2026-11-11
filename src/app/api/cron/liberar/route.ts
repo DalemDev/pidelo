@@ -1,5 +1,5 @@
 import { releaseDueEscrows } from "@/lib/escrow";
-import { expireStaleRequests } from "@/lib/lifecycle";
+import { expireStaleRequests, expireUnpaidSelections } from "@/lib/lifecycle";
 
 // Tareas programadas (p. ej. Vercel Cron cada hora): liberación automática de pagos a las 72 h y
 // vencimiento de solicitudes abandonadas (14 días, con devolución de créditos). Lo "al navegar"
@@ -9,6 +9,6 @@ export async function GET(request: Request) {
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return new Response("No autorizado", { status: 401 });
   }
-  await Promise.all([releaseDueEscrows(), expireStaleRequests()]);
+  await Promise.all([releaseDueEscrows(), expireStaleRequests(), expireUnpaidSelections()]);
   return Response.json({ ok: true });
 }

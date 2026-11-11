@@ -40,7 +40,11 @@ model User {
   bankAccountNumber String?
   bankHolderName    String?
   bankHolderId      String?
+  // Sesiones emitidas antes de esta fecha dejan de valer (p. ej. al restablecer la contraseña).
+  sessionsValidAfter DateTime?
   createdAt    DateTime @default(now())
+
+  passwordResets   PasswordReset[]
 
   payments         Payment[]
   payouts          Payout[]
@@ -292,4 +296,30 @@ model Dispute {
   openedBy   User    @relation(fields: [openedById], references: [id], onDelete: Cascade)
 
   @@index([status])
+}
+
+// Intentos de autenticación para limitar fuerza bruta (login) y abuso del correo de recuperación.
+model AuthAttempt {
+  id        String   @id @default(cuid())
+  // LOGIN | RESET
+  kind      String
+  // Correo normalizado o "ip:<dirección>".
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([kind, key, createdAt])
+}
+
+// Enlace de recuperación de contraseña. Solo se guarda el hash del token; el token viaja por correo.
+model PasswordReset {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

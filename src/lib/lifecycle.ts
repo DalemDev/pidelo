@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "./db";
 import { grantCredits } from "./credits";
 import { notify } from "./matching";
-import { EXPIRY_WARNING_DAYS, REQUEST_EXPIRY_DAYS } from "./constants";
+import { EXPIRY_WARNING_DAYS, PAYMENT_DEADLINE_HOURS, REQUEST_EXPIRY_DAYS } from "./constants";
 
 const DAY = 86400_000;
 
@@ -79,6 +79,56 @@ export async function expireStaleRequests() {
         ? `Pasaron ${REQUEST_EXPIRY_DAYS} días sin elegir oferta. Puedes publicarla de nuevo · ${r.title}`
         : `Pasaron ${REQUEST_EXPIRY_DAYS} días sin ofertas. Prueba publicarla de nuevo con más detalles · ${r.title}`,
       `/solicitudes/${r.id}`,
+    );
+  }
+}
+
+/**
+ * Plazo de pago (sin cron: se llama al navegar y desde /api/cron/liberar). Si el cliente eligió una oferta
+ * y pasan 48 h sin comprobante (o desde que se rechazó el último), se cancela el pago, la oferta vuelve a
+ * competir y la solicitud se reabre. Los comprobantes ya enviados (SUBMITTED) no vencen: los revisa un admin.
+ */
+export async function expireUnpaidSelections() {
+  const cutoff = new Date(Date.now() - PAYMENT_DEADLINE_HOURS * 3600_000);
+  const due = await db.payment.findMany({
+    where: {
+      status: { in: ["PENDING", "REJECTED"] },
+      request: { status: "AWAITING_PAYMENT" },
+      OR: [{ submittedAt: null, createdAt: { lte: cutoff } }, { submittedAt: { lte: cutoff } }],
+    },
+    include: { request: { select: { title: true } } },
+    take: 20,
+  });
+
+  for (const p of due) {
+    const reopened = await db.$transaction(async (tx) => {
+      // Condicionado al estado: si el cliente sube el comprobante justo ahora, gana su acción.
+      const { count } = await tx.payment.updateMany({
+        where: { id: p.id, status: { in: ["PENDING", "REJECTED"] } },
+        data: { status: "CANCELLED", adminNote: `Venció el plazo de ${PAYMENT_DEADLINE_HOURS} h para pagar` },
+      });
+      if (!count) return null;
+      await tx.offer.update({ where: { id: p.offerId }, data: { status: "PENDING" } });
+      // Se reinicia bumpedAt para que la solicitud reabierta no venza de inmediato.
+      await tx.request.update({
+        where: { id: p.requestId },
+        data: { status: "OPEN", escrow: "NONE", acceptedOfferId: null, bumpedAt: new Date(), expiryWarned: false },
+      });
+      return tx.offer.findUniqueOrThrow({ where: { id: p.offerId }, select: { providerId: true } });
+    });
+    if (!reopened) continue;
+
+    await notify(
+      p.payerId,
+      "⌛ Venció el plazo para pagar",
+      `Pasaron ${PAYMENT_DEADLINE_HOURS} h sin pago. Tu solicitud volvió a recibir ofertas · ${p.request.title}`,
+      `/solicitudes/${p.requestId}`,
+    );
+    await notify(
+      reopened.providerId,
+      "↩️ El cliente no completó el pago",
+      `Tu oferta sigue activa por si vuelve a elegirte · ${p.request.title}`,
+      `/solicitudes/${p.requestId}`,
     );
   }
 }
