@@ -11,23 +11,29 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "db:up": "docker compose up -d --wait",
     "db:deploy": "prisma migrate deploy",
-    "vercel-build": "prisma migrate deploy && next build"
+    "vercel-build": "prisma migrate deploy && next build",
+    "data:encrypt-bank": "tsx --conditions=react-server scripts/encrypt-bank-data.ts",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:watch": "vitest",
+    "db:test:create": "docker compose exec -T db createdb -U pidelo pidelo_test",
+    "check": "npm run lint && npm run typecheck && npm test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
     "@aws-sdk/client-s3": "^3.1141.0",
-    "@prisma/adapter-pg": "^7.10.0",
-    "@prisma/client": "^7.10.0",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.12",
-    "next": "16.3.6",
+    "next": "16.4.6",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -37,15 +43,16 @@
     "@types/react-dom": "^19",
     "dotenv": "^18.0.4",
     "eslint": "^9",
-    "eslint-config-next": "16.3.6",
-    "prisma": "^7.10.0",
+    "eslint-config-next": "16.4.6",
+    "prisma": "^7.10.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.12"
   },
   "allowScripts": {
-    "prisma@7.10.0": true,
-    "@prisma/engines@7.10.0": true,
+    "prisma@7.10.1": true,
+    "@prisma/engines@7.10.1": true,
     "esbuild@0.28.2": true,
     "unrs-resolver@1.12.2": true
   }

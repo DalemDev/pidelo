@@ -1,18 +1,17 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getCurrentUser } from "@/server/auth/session";
+import { db } from "@/server/db/client";
 import { logout } from "@/app/actions/auth";
 import { Avatar, PlanBadge } from "./ui";
-import { refreshAccount } from "@/lib/credits";
-import { releaseDueEscrows } from "@/lib/escrow";
-import { expireStaleRequests } from "@/lib/lifecycle";
+import { refreshAccount } from "@/server/services/billing";
+import { runScheduledJobsOnRequest } from "@/server/jobs/scheduler";
 
 export async function Navbar() {
   const session = await getCurrentUser();
-  // Renueva planes y entrega créditos mensuales si corresponde (sin cron).
+  // Renueva planes y entrega créditos mensuales si corresponde (una consulta; casi siempre no hace nada).
   if (session) await refreshAccount(session.id);
-  // Libera pagos de trabajos entregados hace más de 72 h (sin cron; ver README para usar Vercel Cron).
-  await Promise.all([releaseDueEscrows(), expireStaleRequests()]);
+  // En producción los trabajos programados los dispara el cron; esto solo actúa en desarrollo.
+  await runScheduledJobsOnRequest();
   const [user, unread] = session
     ? await Promise.all([
         db.user.findUnique({ where: { id: session.id }, select: { id: true, name: true, email: true, credits: true, plan: true, role: true } }),
@@ -48,7 +47,7 @@ export async function Navbar() {
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
           {isAdminUser ? (
             <Link href="/admin" className="btn-primary">
-              ⚙️ <span className="hidden sm:inline">Panel de administración</span>
+              <span className="hidden sm:inline">Panel de administración</span>
               <span className="sm:hidden">Admin</span>
             </Link>
           ) : (
@@ -67,7 +66,7 @@ export async function Navbar() {
                 className="chip h-10 shrink-0 gap-1.5 whitespace-nowrap rounded-xl border border-amber-200 bg-sun-100/60 px-3 text-sm text-amber-900 hover:bg-sun-100"
                 aria-label={`${user.credits} créditos`}
               >
-                🪙 {user.credits}
+                {user.credits} <span className="hidden sm:inline">créditos</span>
               </Link>
               )}
               <Link
@@ -99,7 +98,7 @@ export async function Navbar() {
                   {!isAdminUser && (
                     <>
                       <Link href="/billetera" className="block rounded-lg px-3 py-2 hover:bg-zinc-100">
-                        💰 Billetera
+                        Billetera
                       </Link>
                       <Link href="/creditos" className="block rounded-lg px-3 py-2 hover:bg-zinc-100">
                         Mis créditos
@@ -108,17 +107,22 @@ export async function Navbar() {
                   )}
                   {user.role === "ADMIN" && (
                     <Link href="/admin" className="block rounded-lg px-3 py-2 font-semibold text-brand-700 hover:bg-brand-50">
-                      ⚙️ Administración
+                      Administración
                     </Link>
                   )}
                   {!isAdminUser && (
                     <Link href="/planes" className="block rounded-lg px-3 py-2 hover:bg-zinc-100">
-                      {user.plan === "FREE" ? "Mejorar plan ✨" : "Mi plan"}
+                      {user.plan === "FREE" ? "Mejorar plan " : "Mi plan"}
                     </Link>
                   )}
                   <Link href={`/perfil/${user.id}`} className="block rounded-lg px-3 py-2 hover:bg-zinc-100">
                     Mi perfil
                   </Link>
+                  {!isAdminUser && (
+                    <Link href="/cuenta" className="block rounded-lg px-3 py-2 hover:bg-zinc-100">
+                      Mi cuenta y privacidad
+                    </Link>
+                  )}
                   {!isAdminUser && (
                     <>
                       <Link href="/actividad" className="block rounded-lg px-3 py-2 hover:bg-zinc-100 sm:hidden">

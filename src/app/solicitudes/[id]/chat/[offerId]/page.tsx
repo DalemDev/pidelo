@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
-import { money } from "@/lib/format";
-import { contactUnlocked } from "@/lib/constants";
+import { db } from "@/server/db/client";
+import { requireUser } from "@/server/auth/session";
+import { money } from "@/domain/format";
+import { contactUnlocked } from "@/domain/policies";
 import { Avatar } from "@/components/ui";
 import { ChatComposer, AutoRefresh } from "./chat-client";
 
@@ -28,7 +28,8 @@ export default async function ChatPage({ params }: PageProps<"/solicitudes/[id]/
           author: { select: { id: true, name: true } },
         },
       },
-      messages: { orderBy: { createdAt: "asc" }, include: { sender: { select: { id: true, name: true } } } },
+      // Últimos 200 mensajes: el chat se refresca seguido y no debe recargar historiales enormes.
+      messages: { orderBy: { createdAt: "desc" }, take: 200, include: { sender: { select: { id: true, name: true } } } },
     },
   });
   // Solo quien pidió y quien ofertó pueden ver la conversación.
@@ -56,11 +57,11 @@ export default async function ChatPage({ params }: PageProps<"/solicitudes/[id]/
         <div className="space-y-2">
           {unlocked ? (
             <div className="mx-auto max-w-md rounded-xl bg-emerald-50 px-3 py-2 text-center text-xs text-emerald-800">
-              🛡️ Pago protegido. Ya pueden compartir datos para coordinar el trabajo. Nunca compartas contraseñas.
+              Pago protegido. Ya pueden compartir datos para coordinar el trabajo. Nunca compartas contraseñas.
             </div>
           ) : (
             <div className="mx-auto max-w-md rounded-xl bg-zinc-100 px-3 py-2 text-center text-xs text-zinc-600">
-              🔒 Teléfonos, correos y redes se desbloquean cuando se acepta la oferta y el pago queda protegido. Pagar por
+              Teléfonos, correos y redes se desbloquean cuando se acepta la oferta y el pago queda protegido. Pagar por
               fuera = sin garantía ni reseñas. Los intentos cuentan como advertencia.
             </div>
           )}
@@ -70,7 +71,7 @@ export default async function ChatPage({ params }: PageProps<"/solicitudes/[id]/
               <div className="whitespace-pre-line">{offer.message}</div>
             </div>
           </div>
-          {offer.messages.map((m) => {
+          {[...offer.messages].reverse().map((m) => {
             const mine = m.senderId === user.id;
             return (
               <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>

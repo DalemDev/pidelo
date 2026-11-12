@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { getReputations } from "@/lib/matching";
-import { categoryOf } from "@/lib/constants";
-import { splitSkills, timeAgo } from "@/lib/format";
+import { db } from "@/server/db/client";
+import { getCurrentUser } from "@/server/auth/session";
+import { getReputations } from "@/server/queries/reputation";
+import { categoryOf } from "@/domain/catalog";
+import { splitSkills, timeAgo } from "@/domain/format";
 import { Avatar, PlanBadge, RequestCard, Stars } from "@/components/ui";
 
 export async function generateMetadata({ params }: PageProps<"/perfil/[id]">): Promise<Metadata> {
@@ -58,7 +58,7 @@ export default async function ProfilePage({ params }: PageProps<"/perfil/[id]">)
             {profile.name} <PlanBadge plan={profile.plan} />
           </h1>
           <div className="mt-1 text-sm text-zinc-500">
-            📍 {profile.city} · En Pídelo desde {profile.createdAt.toLocaleDateString("es-EC", { month: "long", year: "numeric" })}
+            {profile.city} · En Pídelo desde {profile.createdAt.toLocaleDateString("es-EC", { month: "long", year: "numeric" })}
           </div>
           {profile.bio && <p className="mt-3 max-w-2xl text-zinc-700">{profile.bio}</p>}
           {skills.length > 0 && (

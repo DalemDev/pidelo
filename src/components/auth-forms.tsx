@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { login, register } from "@/app/actions/auth";
-import { CATEGORIES, CITIES } from "@/lib/constants";
+import { requestPasswordReset, resetPassword } from "@/app/actions/password";
+import { CATEGORIES, CITIES } from "@/domain/catalog";
 import { FormMessage, SubmitButton } from "./form-bits";
 
 export function LoginForm({ next }: { next?: string }) {
@@ -16,7 +17,12 @@ export function LoginForm({ next }: { next?: string }) {
         <input className="input" id="email" name="email" type="email" required autoComplete="email" />
       </div>
       <div>
-        <label className="label" htmlFor="password">Contraseña</label>
+        <div className="flex items-baseline justify-between">
+          <label className="label" htmlFor="password">Contraseña</label>
+          <Link href="/recuperar" className="text-xs font-semibold text-brand-600">
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
         <input className="input" id="password" name="password" type="password" required autoComplete="current-password" />
       </div>
       <FormMessage state={state} />
@@ -57,6 +63,21 @@ export function RegisterForm({ next }: { next?: string }) {
         <input className="input" id="password" name="password" type="password" minLength={8} required autoComplete="new-password" />
       </div>
       <SkillsPicker />
+      <div className="space-y-2 text-sm text-zinc-700">
+        <label className="flex items-start gap-2">
+          <input type="checkbox" name="acceptTerms" required className="mt-1" />
+          <span>
+            Acepto los{" "}
+            <Link href="/legal/terminos" target="_blank" className="font-semibold text-brand-600">términos y condiciones</Link> y autorizo el
+            tratamiento de mis datos según la{" "}
+            <Link href="/legal/privacidad" target="_blank" className="font-semibold text-brand-600">política de privacidad</Link>.
+          </span>
+        </label>
+        <label className="flex items-start gap-2">
+          <input type="checkbox" name="adult" required className="mt-1" />
+          <span>Declaro que tengo 18 años o más.</span>
+        </label>
+      </div>
       <FormMessage state={state} />
       <SubmitButton className="w-full">Crear cuenta</SubmitButton>
       <p className="text-center text-sm text-zinc-600">
@@ -65,6 +86,43 @@ export function RegisterForm({ next }: { next?: string }) {
           Ingresa
         </Link>
       </p>
+    </form>
+  );
+}
+
+export function ForgotPasswordForm() {
+  const [state, action] = useActionState(requestPasswordReset, undefined);
+  return (
+    <form action={action} className="space-y-4">
+      <div>
+        <label className="label" htmlFor="email">Correo de tu cuenta</label>
+        <input className="input" id="email" name="email" type="email" required autoComplete="email" />
+      </div>
+      <FormMessage state={state} />
+      <SubmitButton className="w-full">Enviarme el enlace</SubmitButton>
+      <p className="text-center text-sm text-zinc-600">
+        <Link href="/ingresar" className="font-semibold text-brand-600">
+          Volver a ingresar
+        </Link>
+      </p>
+    </form>
+  );
+}
+
+export function ResetPasswordForm({ token }: { token: string }) {
+  const [state, action] = useActionState(resetPassword.bind(null, token), undefined);
+  return (
+    <form action={action} className="space-y-4">
+      <div>
+        <label className="label" htmlFor="password">Nueva contraseña</label>
+        <input className="input" id="password" name="password" type="password" minLength={8} required autoComplete="new-password" />
+      </div>
+      <div>
+        <label className="label" htmlFor="confirm">Repítela</label>
+        <input className="input" id="confirm" name="confirm" type="password" minLength={8} required autoComplete="new-password" />
+      </div>
+      <FormMessage state={state} />
+      <SubmitButton className="w-full">Guardar y entrar</SubmitButton>
     </form>
   );
 }

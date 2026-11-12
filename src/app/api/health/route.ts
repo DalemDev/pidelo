@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { db } from "@/server/db/client";
 
 // Para monitoreo (UptimeRobot, Better Stack…): 200 si la app y la base de datos responden.
 export const dynamic = "force-dynamic";

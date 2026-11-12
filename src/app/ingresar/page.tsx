@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/server/auth/session";
 import { LoginForm } from "@/components/auth-forms";
 
 export const metadata: Metadata = { title: "Ingresar" };
@@ -16,9 +16,6 @@ export default async function LoginPage({ searchParams }: PageProps<"/ingresar">
       <div className="card mt-6 p-6">
         <LoginForm next={next} />
       </div>
-      <p className="mt-4 text-center text-xs text-zinc-500">
-        Cuenta demo: <code>ana@demo.ec</code> / <code>demo1234</code>
-      </p>
     </div>
   );
 }

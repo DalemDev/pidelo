@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { STATUS_LABELS, categoryOf, kindLabel, modalityLabel } from "@/lib/constants";
-import { budgetLabel, initials, timeAgo } from "@/lib/format";
-import type { Reputation } from "@/lib/matching";
+import { STATUS_LABELS, categoryOf, kindLabel, modalityLabel } from "@/domain/catalog";
+import { budgetLabel, initials, timeAgo } from "@/domain/format";
+import type { Reputation } from "@/server/queries/reputation";
 
 const AVATAR_COLORS = [
   "bg-brand-100 text-brand-700",
@@ -92,10 +92,10 @@ export function RequestCard({ r, matched }: { r: RequestCardData; matched?: bool
       }`}
     >
       <div className="flex flex-wrap items-center gap-1.5">
-        {featured && <span className="chip bg-amber-400 text-amber-950">⭐ Destacada</span>}
-        {early && <span className="chip bg-brand-600 text-white">⏱ Acceso anticipado</span>}
-        {r.urgent && <span className="chip bg-sun-100 text-amber-800">⚡ Urgente</span>}
-        {matched && <span className="chip bg-brand-50 text-brand-700">🎯 Para ti</span>}
+        {featured && <span className="chip bg-amber-400 text-amber-950">Destacada</span>}
+        {early && <span className="chip bg-brand-600 text-white">Acceso anticipado</span>}
+        {r.urgent && <span className="chip bg-sun-100 text-amber-800">Urgente</span>}
+        {matched && <span className="chip bg-brand-50 text-brand-700">Para ti</span>}
         <span className="chip bg-zinc-100 text-zinc-700">
           {cat.icon} {cat.label}
         </span>
@@ -125,7 +125,6 @@ export function RequestCard({ r, matched }: { r: RequestCardData; matched?: bool
 export function EmptyState({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <div className="card flex flex-col items-center gap-2 px-6 py-14 text-center">
-      <div className="text-4xl">🔍</div>
       <h3 className="font-display text-lg font-semibold">{title}</h3>
       <div className="max-w-md text-sm text-zinc-600">{children}</div>
     </div>

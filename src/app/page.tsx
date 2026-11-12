@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { db } from "@/lib/db";
-import { CATEGORIES } from "@/lib/constants";
+import { db } from "@/server/db/client";
+import { CATEGORIES } from "@/domain/catalog";
 import { RequestCard } from "@/components/ui";
-import { getCurrentUser } from "@/lib/auth";
-import { earlyAccessFilter, sortFeed } from "@/lib/feed";
+import { getCurrentUser } from "@/server/auth/session";
+import { earlyAccessFilter, sortFeed } from "@/server/queries/feed";
 
 const EXAMPLES = [
   "Necesito alguien que me explique cálculo integral antes del examen del viernes, en Quito o por Zoom",
@@ -33,22 +33,21 @@ export default async function Home() {
         <div className="pointer-events-none absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-sun-100 blur-3xl" />
         <div className="relative mx-auto grid max-w-6xl gap-12 px-4 py-16 md:grid-cols-[1.15fr_1fr] md:py-24">
           <div>
-            <span className="chip bg-brand-50 text-brand-700">🇪🇨 Hecho para Ecuador</span>
-            <h1 className="mt-5 font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
+            <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
               Publica lo que necesitas.
               <br />
               <span className="text-brand-600">Alguien lo resuelve.</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg text-zinc-600">
-              Tutorías, trámites, auditorías, reparaciones o conseguir ese producto que no encuentras. Cuéntalo como
-              quieras: nuestra IA lo ordena y avisa <b>al instante</b> a las personas que saben resolverlo.
+              Tutorías, trámites, auditorías, reparaciones o un producto difícil de conseguir. Descríbelo con tus palabras, el
+              asistente arma la solicitud y avisamos a quienes pueden resolverla. Pagas solo cuando confirmas el trabajo.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/publicar" className="btn-primary px-6 py-3 text-base">
                 Publicar mi necesidad
               </Link>
               <Link href="/solicitudes" className="btn-secondary px-6 py-3 text-base">
-                Quiero ganar dinero ayudando
+                Ofrecer mis servicios
               </Link>
             </div>
             <div className="mt-8 flex gap-8 text-sm text-zinc-600">
@@ -58,28 +57,28 @@ export default async function Home() {
               </div>
               <div>
                 <div className="font-display text-2xl font-bold text-zinc-900">{providerCount}</div>
-                personas listas para ayudar
+                proveedores registrados
               </div>
             </div>
           </div>
 
           <div className="card relative self-center p-5 shadow-xl shadow-brand-900/5">
-            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Así de fácil</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Ejemplo</div>
             <div className="mt-3 rounded-xl bg-zinc-50 p-4 text-[15px] text-zinc-700">&ldquo;{EXAMPLES[0]}&rdquo;</div>
             <div className="my-3 flex items-center gap-2 text-xs font-semibold text-brand-600">
-              <span className="h-px flex-1 bg-brand-100" />✨ La IA lo convierte en<span className="h-px flex-1 bg-brand-100" />
+              <span className="h-px flex-1 bg-brand-100" />se publica como<span className="h-px flex-1 bg-brand-100" />
             </div>
             <div className="rounded-xl border border-brand-100 bg-brand-50/50 p-4">
               <div className="flex flex-wrap gap-1.5">
-                <span className="chip bg-white text-zinc-700">🎓 Tutoría académica</span>
+                <span className="chip bg-white text-zinc-700">Tutoría académica</span>
                 <span className="chip bg-white text-zinc-700">Acompañamiento</span>
                 <span className="chip bg-white text-zinc-700">Quito · Remoto o presencial</span>
               </div>
               <div className="mt-2 font-display font-semibold">Tutoría de cálculo integral antes del viernes</div>
               <div className="mt-1 text-sm text-zinc-600">Presupuesto sugerido: $15 – $30</div>
             </div>
-            <div className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-              🔔 Avisamos a 12 tutores de matemáticas · primera oferta en ~4 min
+            <div className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+              Avisamos a los tutores de matemáticas de tu ciudad y a quienes dan clases en línea.
             </div>
           </div>
         </div>
@@ -87,16 +86,16 @@ export default async function Home() {
 
       {/* Cómo funciona */}
       <section className="mx-auto max-w-6xl px-4 py-16">
-        <h2 className="font-display text-3xl font-bold tracking-tight">Por qué es mejor que publicar en un grupo</h2>
+        <h2 className="font-display text-3xl font-bold tracking-tight">Cómo funciona</h2>
         <div className="mt-8 grid gap-4 md:grid-cols-4">
           {[
-            ["✍️", "Escríbelo como te salga", "La IA arma una solicitud clara, sugiere presupuesto y te pregunta lo que falta."],
-            ["🎯", "Match instantáneo", "Avisamos solo a quienes saben de ese tema y están en tu ciudad. Nada de esperar días."],
-            ["🛡️", "Pago protegido", "Tu dinero queda retenido y solo se libera cuando confirmas que recibiste el trabajo."],
-            ["⭐", "Reputación real", "Calificaciones y trabajos completados verificados. Sabes con quién tratas."],
-          ].map(([icon, title, text]) => (
+            ["1", "Describe lo que necesitas", "El asistente ordena tu texto en una solicitud clara, sugiere un presupuesto y te indica qué datos faltan."],
+            ["2", "Recibe ofertas", "Avisamos a quienes trabajan en esa categoría y, si es presencial, en tu ciudad. Comparas precio, plazo y reputación."],
+            ["3", "Paga con protección", "El pago queda retenido por Pídelo y se libera cuando confirmas que recibiste el trabajo."],
+            ["4", "Califica", "Las reseñas solo las dejan personas que completaron un trabajo en la plataforma."],
+          ].map(([step, title, text]) => (
             <div key={title} className="card p-5">
-              <div className="text-2xl">{icon}</div>
+              <div className="grid h-8 w-8 place-items-center rounded-full bg-brand-50 font-display font-bold text-brand-700">{step}</div>
               <h3 className="mt-3 font-display text-lg font-semibold">{title}</h3>
               <p className="mt-1 text-sm text-zinc-600">{text}</p>
             </div>
@@ -125,9 +124,9 @@ export default async function Home() {
       {latest.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 pb-20">
           <div className="flex items-end justify-between">
-            <h2 className="font-display text-2xl font-bold tracking-tight">Personas que necesitan ayuda ahora</h2>
+            <h2 className="font-display text-2xl font-bold tracking-tight">Solicitudes recientes</h2>
             <Link href="/solicitudes" className="text-sm font-semibold text-brand-600 hover:underline">
-              Ver todas →
+              Ver todas
             </Link>
           </div>
           <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">

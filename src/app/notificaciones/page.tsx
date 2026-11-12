@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
-import { timeAgo } from "@/lib/format";
+import { db } from "@/server/db/client";
+import { requireUser } from "@/server/auth/session";
+import { timeAgo } from "@/domain/format";
 import { markAllNotificationsRead } from "@/app/actions/requests";
 import { EmptyState } from "@/components/ui";
 import { SubmitButton } from "@/components/form-bits";

@@ -12,6 +12,13 @@ const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000);
 const inDays = (d: number) => new Date(Date.now() + d * 86400_000);
 
 async function main() {
+  // El seed BORRA TODA LA BASE y crea cuentas con clave conocida: nunca en producción.
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production") {
+    throw new Error("El seed de demostración no se puede ejecutar en producción.");
+  }
+  await db.auditLog.deleteMany();
+  await db.rateLimitEvent.deleteMany();
+  await db.session.deleteMany();
   await db.ledgerEntry.deleteMany();
   await db.creditTransaction.deleteMany();
   await db.notification.deleteMany();

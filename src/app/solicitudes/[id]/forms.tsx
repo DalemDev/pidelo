@@ -6,7 +6,7 @@ import { FormMessage, SubmitButton } from "@/components/form-bits";
 import Link from "next/link";
 import { boostRequest, type BoostKind } from "@/app/actions/billing";
 import { openDispute } from "@/app/actions/payments";
-import { money } from "@/lib/format";
+import { money } from "@/domain/format";
 
 export function OfferForm({
   requestId,
@@ -67,7 +67,7 @@ export function OfferForm({
             <input type="checkbox" name="saveTemplate" className="accent-brand-600" /> Guardar este mensaje como mi plantilla
           </label>
         ) : (
-          <p className="mt-1.5 text-xs text-zinc-400">✨ Con Pro puedes guardar una plantilla de oferta.</p>
+          <p className="mt-1.5 text-xs text-zinc-400">Con Pro puedes guardar una plantilla de oferta.</p>
         )}
       </div>
       <ul className="space-y-1 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-900">
@@ -79,12 +79,12 @@ export function OfferForm({
       {short ? (
         <div className="space-y-2 text-center">
           <p className="text-sm text-rose-600">
-            Ofertar aquí cuesta 🪙 {cost} y tienes {credits}.
+            Ofertar aquí cuesta {cost} crédito{cost === 1 ? "" : "s"} y tienes {credits}.
           </p>
           <Link href="/creditos" className="btn-primary w-full">Comprar créditos</Link>
         </div>
       ) : (
-        <SubmitButton className="w-full">Enviar oferta · 🪙 {cost}</SubmitButton>
+        <SubmitButton className="w-full">Enviar oferta · {cost} crédito{cost === 1 ? "" : "s"}</SubmitButton>
       )}
       <p className="text-center text-[11px] text-zinc-400">Si el cliente cancela la solicitud, te devolvemos los créditos.</p>
     </form>
@@ -113,7 +113,7 @@ export function BoostButton({
         title={disabledReason}
       >
         <span>{pending ? "Aplicando…" : label}</span>
-        <span className="text-xs text-amber-900">{disabledReason ?? `🪙 ${cost}`}</span>
+        <span className="text-xs text-amber-900">{disabledReason ?? `${cost} créditos`}</span>
       </button>
       {state?.error && (
         <p className="mt-1 text-xs text-rose-600">

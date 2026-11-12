@@ -3,9 +3,10 @@
 import { useActionState, useState, useTransition } from "react";
 import { aiDraft, createRequest } from "@/app/actions/requests";
 import Link from "next/link";
-import { BOOST_COSTS, CATEGORIES, CITIES, FEATURE_DAYS, KINDS, MODALITIES } from "@/lib/constants";
+import { BOOST_COSTS, FEATURE_DAYS } from "@/domain/policies";
+import { CATEGORIES, CITIES, KINDS, MODALITIES } from "@/domain/catalog";
 import { FormMessage, SubmitButton } from "@/components/form-bits";
-import type { Draft } from "@/lib/ai";
+import type { Draft } from "@/server/infra/ai/request-draft";
 
 const PROMPTS = [
   "Necesito que alguien me explique contabilidad de costos, tengo examen el lunes",
@@ -33,19 +34,19 @@ function BoostOptions({ credits, aiSaysUrgent }: { credits: number; aiSaysUrgent
     <div className="space-y-2 rounded-xl border border-amber-200 bg-sun-100/40 p-3">
       <div className="flex items-center justify-between text-sm">
         <b>Más visibilidad (opcional)</b>
-        <Link href="/creditos" className="text-xs font-semibold text-amber-900 hover:underline">🪙 Tienes {credits} créditos</Link>
+        <Link href="/creditos" className="text-xs font-semibold text-amber-900 hover:underline">Tienes {credits} créditos</Link>
       </div>
       <label className="flex cursor-pointer items-start gap-3 rounded-lg bg-white/70 p-2.5">
         <input type="checkbox" name="urgent" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} className="mt-0.5 h-5 w-5 accent-amber-500" />
         <span className="flex-1 text-sm">
-          <b>⚡ Urgente · {BOOST_COSTS.URGENT} créditos</b> — aparece primero y avisamos con prioridad.
+          <b>Urgente · {BOOST_COSTS.URGENT} créditos</b> — aparece primero y avisamos con prioridad.
           {aiSaysUrgent && !urgent && <span className="block text-xs text-amber-800">Parece que lo necesitas pronto: esta opción te ayuda a recibir ofertas más rápido.</span>}
         </span>
       </label>
       <label className="flex cursor-pointer items-start gap-3 rounded-lg bg-white/70 p-2.5">
         <input type="checkbox" name="featured" checked={featured} onChange={(e) => setFeatured(e.target.checked)} className="mt-0.5 h-5 w-5 accent-amber-500" />
         <span className="flex-1 text-sm">
-          <b>⭐ Destacar {FEATURE_DAYS} días · {BOOST_COSTS.FEATURE} créditos</b> — primera posición y diseño resaltado.
+          <b>Destacar {FEATURE_DAYS} días · {BOOST_COSTS.FEATURE} créditos</b> — primera posición y diseño resaltado.
         </span>
       </label>
       {total > 0 && (
@@ -90,7 +91,7 @@ export function Composer({ defaultCity, aiEnabled, credits }: { defaultCity: str
         <div className="mb-2 flex items-center justify-between">
           <label htmlFor="free-text" className="font-semibold">1. Cuéntanos qué necesitas</label>
           <span className={`chip ${aiEnabled ? "bg-brand-50 text-brand-700" : "bg-zinc-100 text-zinc-600"}`}>
-            {aiEnabled ? "✨ IA activa" : "Asistente básico"}
+            {aiEnabled ? "Asistente con IA" : "Asistente básico"}
           </span>
         </div>
         <textarea
@@ -113,7 +114,7 @@ export function Composer({ defaultCity, aiEnabled, credits }: { defaultCity: str
         {aiError && <p className="mt-3 text-sm text-rose-600">{aiError}</p>}
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button type="button" onClick={runAssistant} disabled={thinking || text.trim().length < 10} className="btn-primary">
-            {thinking ? "Ordenando tu solicitud…" : draft ? "✨ Volver a generar" : "✨ Ordenar con IA"}
+            {thinking ? "Ordenando tu solicitud…" : draft ? "Volver a generar" : "Ordenar con IA"}
           </button>
           {!showForm && (
             <button type="button" onClick={() => setManual(true)} className="btn-ghost">

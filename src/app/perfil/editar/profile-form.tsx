@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { updateProfile } from "@/app/actions/auth";
-import { CITIES } from "@/lib/constants";
+import { CITIES } from "@/domain/catalog";
 import { SkillsPicker } from "@/components/auth-forms";
 import { FormMessage, SubmitButton } from "@/components/form-bits";
 

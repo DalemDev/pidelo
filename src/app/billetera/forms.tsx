@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { requestPayout, saveBankAccount } from "@/app/actions/payments";
 import { FormMessage, SubmitButton } from "@/components/form-bits";
-import { MIN_PAYOUT_CENTS, fmtCents } from "@/lib/money";
+import { MIN_PAYOUT_CENTS, fmtCents } from "@/domain/money";
 
 export function PayoutForm({ withdrawable }: { withdrawable: number }) {
   const [state, action] = useActionState(requestPayout, undefined);
@@ -36,12 +36,11 @@ export function PayoutForm({ withdrawable }: { withdrawable: number }) {
   );
 }
 
+// Los números de cuenta y de cédula nunca se precargan: se escriben de nuevo en cada cambio.
 type Bank = {
   bankName: string;
   bankAccountType: string;
-  bankAccountNumber: string;
   bankHolderName: string;
-  bankHolderId: string;
 };
 
 export function BankForm({ bank }: { bank: Bank }) {
@@ -68,7 +67,7 @@ export function BankForm({ bank }: { bank: Bank }) {
       </div>
       <div>
         <label className="label" htmlFor="bankAccountNumber">Número de cuenta</label>
-        <input className="input" id="bankAccountNumber" name="bankAccountNumber" inputMode="numeric" defaultValue={bank.bankAccountNumber} required />
+        <input className="input" id="bankAccountNumber" name="bankAccountNumber" inputMode="numeric" autoComplete="off" required />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -77,8 +76,13 @@ export function BankForm({ bank }: { bank: Bank }) {
         </div>
         <div>
           <label className="label" htmlFor="bankHolderId">Cédula o RUC</label>
-          <input className="input" id="bankHolderId" name="bankHolderId" inputMode="numeric" defaultValue={bank.bankHolderId} required />
+          <input className="input" id="bankHolderId" name="bankHolderId" inputMode="numeric" autoComplete="off" required />
         </div>
+      </div>
+      <div>
+        <label className="label" htmlFor="currentPassword">Tu contraseña actual</label>
+        <input className="input" id="currentPassword" name="currentPassword" type="password" autoComplete="current-password" required />
+        <p className="mt-1 text-xs text-zinc-500">La pedimos para confirmar que eres tú. Tras un cambio, los retiros se habilitan en 48 h.</p>
       </div>
       <FormMessage state={state} />
       <SubmitButton variant="secondary">Guardar cuenta</SubmitButton>

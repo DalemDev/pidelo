@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { db } from "@/lib/db";
-import { requireMember } from "@/lib/auth";
-import { budgetLabel, money, timeAgo } from "@/lib/format";
-import { STRIKES_LOSE_PRIORITY, STRIKES_SUSPEND, categoryOf } from "@/lib/constants";
+import { db } from "@/server/db/client";
+import { requireMember } from "@/server/auth/session";
+import { budgetLabel, money, timeAgo } from "@/domain/format";
+import { STRIKES_LOSE_PRIORITY, STRIKES_SUSPEND } from "@/domain/policies";
+import { categoryOf } from "@/domain/catalog";
 import { EmptyState, PlanBadge, StatusBadge } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Mi actividad" };
@@ -53,7 +54,7 @@ export default async function ActivityPage() {
           }`}
         >
           <b>
-            ⚠️ Tienes {user.strikes} de {STRIKES_SUSPEND} advertencias
+            Tienes {user.strikes} de {STRIKES_SUSPEND} advertencias
           </b>{" "}
           por intentar compartir contactos o acordar pagos fuera de Pídelo.{" "}
           {user.suspendedUntil && user.suspendedUntil > new Date()
